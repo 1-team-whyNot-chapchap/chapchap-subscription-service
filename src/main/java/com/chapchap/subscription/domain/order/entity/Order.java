@@ -379,6 +379,11 @@ public class Order {
         status = OrderStatus.CHANGE_NOT_APPLIED;
     }
 
+    public void cancelBeforeStart() {
+        if (status != OrderStatus.ACTIVE) throw new IllegalStateException("유효 주문만 시작 취소할 수 있습니다.");
+        status = OrderStatus.CANCELED_BEFORE_START;
+    }
+
     /** 설정 변경 확정 때 아직 Delivery에 전달되지 않은 기존 유효 주문을 비활성화한다. */
     public void inactivateForSettingChange() {
         if (status != OrderStatus.ACTIVE || kafkaDeliveryStatus == OrderKafkaDeliveryStatus.COMPLETED) {

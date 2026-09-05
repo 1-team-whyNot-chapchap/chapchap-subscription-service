@@ -109,6 +109,25 @@ public class Subscription {
         return previousStatus;
     }
 
+    /** 현재 이용 기간은 유지한 채 다음 자동 갱신만 중단하도록 해지 예정으로 전환한다. */
+    public SubscriptionStatus scheduleCancellation(LocalDateTime requestedAt) {
+        requireStatus(SubscriptionStatus.IN_PROGRESS);
+        if (requestedAt == null) throw new IllegalArgumentException("해지 요청 시각이 필요합니다.");
+        SubscriptionStatus previousStatus = status;
+        status = SubscriptionStatus.CANCELLATION_SCHEDULED;
+        cancellationRequestedAt = requestedAt;
+        return previousStatus;
+    }
+
+    public SubscriptionStatus cancelBeforeStart(LocalDateTime canceledAt) {
+        requireStatus(SubscriptionStatus.SCHEDULED);
+        if (canceledAt == null) throw new IllegalArgumentException("시작 취소 시각이 필요합니다.");
+        SubscriptionStatus previousStatus = status;
+        status = SubscriptionStatus.CANCELED_BEFORE_START;
+        cancellationRequestedAt = canceledAt;
+        return previousStatus;
+    }
+
     /** 해지 예정 또는 다음 기간 정기결제 최종 실패 뒤 실제 구독을 종료한다. */
     public SubscriptionStatus end() {
         if (status != SubscriptionStatus.CANCELLATION_SCHEDULED && status != SubscriptionStatus.IN_PROGRESS) {

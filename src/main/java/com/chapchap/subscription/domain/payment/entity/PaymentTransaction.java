@@ -233,6 +233,15 @@ public class PaymentTransaction {
         complete(PaymentTransactionStatus.FAILED);
     }
 
+    /** 고객 해지로 같은 날 13시 정기결제 재시도를 중단한다. */
+    public void stopRetry() {
+        if (status != PaymentTransactionStatus.RETRY_WAITING) {
+            throw new IllegalStateException("Only a retry waiting payment transaction can be stopped");
+        }
+        status = PaymentTransactionStatus.RETRY_STOPPED;
+        paymentStateVersion++;
+    }
+
     private void complete(PaymentTransactionStatus completedStatus) {
         this.externalRequestIdempotencyKey = null;
         this.status = completedStatus;
