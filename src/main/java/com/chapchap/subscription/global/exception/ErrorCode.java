@@ -37,6 +37,9 @@ public enum ErrorCode {
     // === Subscription ===
     , PLAN_NOT_FOUND("SUBSCRIPTION_001", HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다.")
     , SUBSCRIPTION_ALREADY_ACTIVE("SUBSCRIPTION_002", HttpStatus.CONFLICT, "이미 진행 중인 구독이 있습니다.")
+    , SUBSCRIPTION_NOT_FOUND("SUBSCRIPTION_003", HttpStatus.NOT_FOUND, "구독을 찾을 수 없습니다.")
+    , SUBSCRIPTION_CHANGE_NOT_ALLOWED("SUBSCRIPTION_004", HttpStatus.CONFLICT, "현재 구독 상태에서는 설정을 변경할 수 없습니다.")
+    , SUBSCRIPTION_CHANGE_IN_PROGRESS("SUBSCRIPTION_005", HttpStatus.CONFLICT, "기존 설정 변경이 처리 중입니다.")
 
     // === Order ===
     , ORDER_NOT_FOUND("ORDER_001", HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다.")

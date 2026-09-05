@@ -123,12 +123,60 @@ public class SubscriptionSetting {
         return setting;
     }
 
+    /**
+     * 설정 변경 요청에서 결제·환불 결과를 기다리는 다음 설정 버전을 만든다.
+     * 기존 유효 설정은 이 상태만으로 종료하지 않으며, 변경 확정 때만 종료일을 기록한다.
+     */
+    public static SubscriptionSetting createChangePending(
+            Long subscriptionId,
+            Long planId,
+            int settingSequence,
+            LocalDateTime processingReferenceAt,
+            LocalDate effectiveStartDate
+    ) {
+        SubscriptionSetting setting = createAwaitingConfirmation(
+                subscriptionId, planId, settingSequence, processingReferenceAt, effectiveStartDate
+        );
+        if (settingSequence == 1) {
+            throw new IllegalArgumentException("설정 변경은 두 번째 설정 버전부터 만들 수 있습니다.");
+        }
+        setting.status = SubscriptionSettingStatus.CHANGE_PENDING;
+        return setting;
+    }
+
     // 결제 성공 후 상태를 ACTIVE(유효)로 변경
     public void activate(LocalDateTime confirmedAt) {
         if (status != SubscriptionSettingStatus.AWAITING_CONFIRMATION || confirmedAt == null) {
             throw new IllegalStateException("확정 대기 설정과 확정 시각이 있어야 활성화할 수 있습니다.");
         }
         status = SubscriptionSettingStatus.ACTIVE;
+        this.confirmedAt = confirmedAt;
+    }
+
+    /** 결제·환불 또는 차액 없음이 확정된 설정 변경을 유효 상태로 바꾼다. */
+    public void activateChange(LocalDateTime confirmedAt) {
+        if (status != SubscriptionSettingStatus.CHANGE_PENDING || confirmedAt == null) {
+            throw new IllegalStateException("변경 대기 설정과 확정 시각이 있어야 활성화할 수 있습니다.");
+        }
+        status = SubscriptionSettingStatus.ACTIVE;
+        this.confirmedAt = confirmedAt;
+    }
+
+    /** 확정된 새 설정이 적용될 때 이전 유효 설정의 적용 범위를 닫는다. */
+    public void closeAt(LocalDate effectiveEndExclusiveDate) {
+        if (status != SubscriptionSettingStatus.ACTIVE || effectiveEndExclusiveDate == null
+                || !effectiveEndExclusiveDate.isAfter(effectiveStartDate)) {
+            throw new IllegalStateException("유효 설정의 종료일은 시작일보다 뒤여야 합니다.");
+        }
+        this.effectiveEndExclusiveDate = effectiveEndExclusiveDate;
+    }
+
+    /** 결제 또는 최초 원 결제 취소 실패로 변경이 적용되지 않았음을 기록한다. */
+    public void markChangeNotApplied(LocalDateTime confirmedAt) {
+        if (status != SubscriptionSettingStatus.CHANGE_PENDING || confirmedAt == null) {
+            throw new IllegalStateException("변경 대기 설정만 변경 미적용으로 확정할 수 있습니다.");
+        }
+        status = SubscriptionSettingStatus.CHANGE_NOT_APPLIED;
         this.confirmedAt = confirmedAt;
     }
 
