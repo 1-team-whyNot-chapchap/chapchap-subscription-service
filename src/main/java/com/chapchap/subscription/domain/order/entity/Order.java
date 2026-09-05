@@ -299,6 +299,58 @@ public class Order {
         return order;
     }
 
+    /**
+     * 설정 변경 결과를 기다리는 주문을 만든다.
+     * 같은 배송일의 기존 유효 주문을 바꾸는 경우에만 {@code replacementTargetOrderId}를 기록한다.
+     */
+    public static Order createChangePending(
+        Long userId,
+        Long subscriptionId,
+        Long subscriptionPeriodId,
+        Long subscriptionSettingId,
+        Long termsAgreementId,
+        Long planId,
+        Long addressId,
+        Long menuId,
+        LocalDate deliveryDate,
+        int revisionSequence,
+        Long replacementTargetOrderId,
+        String planName,
+        String menuName,
+        Long mealUnitPrice,
+        Integer mealQuantity,
+        Long mealAmount,
+        Long deliveryFee,
+        Long discountAmount,
+        Long actualAllocatedAmount,
+        String recipientName,
+        String recipientPhone,
+        String postalCode,
+        String addressLine1,
+        String addressLine2,
+        String deliveryMethodCode,
+        String otherDeliveryRequest,
+        String entrancePassword,
+        OrderDeliveryTimeSlot deliveryTimeSlot
+    ) {
+        if (revisionSequence < 1) {
+            throw new IllegalArgumentException("revisionSequence must be positive");
+        }
+        if (replacementTargetOrderId != null && replacementTargetOrderId <= 0) {
+            throw new IllegalArgumentException("replacementTargetOrderId must be positive when present");
+        }
+        Order order = createAwaitingConfirmation(
+            userId, subscriptionId, subscriptionPeriodId, subscriptionSettingId, termsAgreementId, planId, addressId,
+            menuId, deliveryDate, planName, menuName, mealUnitPrice, mealQuantity, mealAmount, deliveryFee,
+            discountAmount, actualAllocatedAmount, recipientName, recipientPhone, postalCode, addressLine1,
+            addressLine2, deliveryMethodCode, otherDeliveryRequest, entrancePassword, deliveryTimeSlot
+        );
+        order.revisionSequence = revisionSequence;
+        order.replacementTargetOrderId = replacementTargetOrderId;
+        order.status = OrderStatus.CHANGE_PENDING;
+        return order;
+    }
+
     /** 첫 결제 성공 뒤 확정 대기 주문을 유효 상태로 변경한다. */
     public void activateAfterPayment() {
         requireAwaitingConfirmation();
@@ -309,6 +361,30 @@ public class Order {
     public void markPaymentFailed() {
         requireAwaitingConfirmation();
         status = OrderStatus.PAYMENT_FAILED;
+    }
+
+    /** 설정 변경 확정 후 새 주문을 유효 상태로 바꾼다. */
+    public void activateChange() {
+        if (status != OrderStatus.CHANGE_PENDING) {
+            throw new IllegalStateException("Only a change pending order can be activated");
+        }
+        status = OrderStatus.ACTIVE;
+    }
+
+    /** 설정 변경 결제·환불 실패 후 새 주문이 적용되지 않았음을 기록한다. */
+    public void markChangeNotApplied() {
+        if (status != OrderStatus.CHANGE_PENDING) {
+            throw new IllegalStateException("Only a change pending order can be marked not applied");
+        }
+        status = OrderStatus.CHANGE_NOT_APPLIED;
+    }
+
+    /** 설정 변경 확정 때 아직 Delivery에 전달되지 않은 기존 유효 주문을 비활성화한다. */
+    public void inactivateForSettingChange() {
+        if (status != OrderStatus.ACTIVE || kafkaDeliveryStatus == OrderKafkaDeliveryStatus.COMPLETED) {
+            throw new IllegalStateException("Only an unsent active order can be replaced");
+        }
+        status = OrderStatus.INACTIVE;
     }
 
     /** Kafka Broker 저장 성공을 반영한다. */

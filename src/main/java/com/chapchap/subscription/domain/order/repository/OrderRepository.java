@@ -33,6 +33,24 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      */
     List<Order> findAllBySubscriptionPeriodId(Long subscriptionPeriodId);
 
+    List<Order> findAllBySubscriptionSettingId(Long subscriptionSettingId);
+
+    /**
+     * 설정 변경 적용일 이후에도 현재 유효하며 Delivery Kafka에 아직 전달하지 않은 주문을 조회한다.
+     * 설정 변경의 실제 교체·비활성화는 이 조회 결과를 기반으로 결제·환불 결과가 확정된 뒤 수행한다.
+     */
+    List<Order> findAllBySubscriptionIdAndStatusAndKafkaDeliveryStatusAndDeliveryDateGreaterThanEqual(
+        Long subscriptionId,
+        OrderStatus status,
+        OrderKafkaDeliveryStatus kafkaDeliveryStatus,
+        LocalDate deliveryDate
+    );
+
+    Optional<Order> findTopBySubscriptionIdAndDeliveryDateOrderByRevisionSequenceDesc(
+        Long subscriptionId,
+        LocalDate deliveryDate
+    );
+
     boolean existsByAddressIdAndStatusAndDeliveryDateGreaterThanEqual(
         Long addressId, OrderStatus status, LocalDate deliveryDate
     );
