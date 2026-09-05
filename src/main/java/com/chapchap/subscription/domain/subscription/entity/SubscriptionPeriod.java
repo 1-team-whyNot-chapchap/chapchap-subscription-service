@@ -131,6 +131,15 @@ public class SubscriptionPeriod {
         status = SubscriptionPeriodStatus.IN_PROGRESS;
     }
 
+    public void cancelBeforeStart(LocalDateTime canceledAt, String reason) {
+        if (status != SubscriptionPeriodStatus.SCHEDULED || canceledAt == null || reason == null || reason.isBlank()) {
+            throw new IllegalStateException("시작 예정 기간만 시작 취소할 수 있습니다.");
+        }
+        status = SubscriptionPeriodStatus.CANCELED_BEFORE_START;
+        startCanceledAt = canceledAt;
+        startCancelReason = reason;
+    }
+
     private void requireAwaitingConfirmation() {
         if (status != SubscriptionPeriodStatus.AWAITING_CONFIRMATION) {
             throw new IllegalStateException("확정 대기 이용 기간만 결제 결과를 반영할 수 있습니다.");
