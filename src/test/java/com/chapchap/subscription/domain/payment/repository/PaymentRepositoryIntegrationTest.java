@@ -8,6 +8,7 @@ import com.chapchap.subscription.domain.payment.entity.PaymentMethod;
 import com.chapchap.subscription.domain.payment.entity.PaymentMethodStatus;
 import com.chapchap.subscription.domain.payment.entity.PaymentProviderCode;
 import com.chapchap.subscription.domain.payment.entity.PaymentTransaction;
+import com.chapchap.subscription.domain.payment.entity.Refund;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,9 @@ class PaymentRepositoryIntegrationTest {
 
     @Autowired
     private PaymentMethodRepository paymentMethodRepository;
+
+    @Autowired
+    private RefundRepository refundRepository;
 
     @Autowired
     private EntityManager entityManager;
@@ -165,6 +169,32 @@ class PaymentRepositoryIntegrationTest {
         assertThat(paymentMethod.getDeletedAt()).isNull();
         assertThat(paymentMethod.getLastSelectedAt()).isEqualTo(lastSelectedAt);
         assertThat(paymentMethod.getProtectedExternalMethodRef()).isEqualTo(protectedExternalMethodRef);
+    }
+
+    @Test
+    void 설정변경_추가결제와_감액환불과_부분취소거래를_MySQL에_저장한다() {
+        long userId = uniquePositiveId();
+        long subscriptionId = uniquePositiveId();
+        long periodId = uniquePositiveId();
+        long settingId = uniquePositiveId();
+        PaymentTransaction additional = paymentTransactionRepository.saveAndFlush(
+            PaymentTransaction.createSettingChangePayment(userId, subscriptionId, periodId, settingId,
+                3_000L, REQUESTED_AT, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 28),
+                LocalDate.of(2026, 9, 8), uniqueKey("setting-payment"), REQUESTED_AT)
+        );
+        Refund refund = refundRepository.saveAndFlush(
+            Refund.createSettingChangeReduction(subscriptionId, uniquePositiveId(), 1_000L)
+        );
+        PaymentTransaction cancellation = paymentTransactionRepository.saveAndFlush(
+            PaymentTransaction.createSettingChangeCancellation(userId, subscriptionId, periodId,
+                refund.getSubscriptionSettingId(), refund.getId(), additional.getId(), 1_000L,
+                REQUESTED_AT, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 28),
+                LocalDate.of(2026, 9, 8), uniqueKey("setting-cancel"), REQUESTED_AT)
+        );
+
+        assertThat(additional.getSubscriptionSettingId()).isEqualTo(settingId);
+        assertThat(refund.getSubscriptionSettingId()).isNotNull();
+        assertThat(cancellation.getSubscriptionSettingId()).isEqualTo(refund.getSubscriptionSettingId());
     }
 
     private PaymentTransaction savedTransaction() {

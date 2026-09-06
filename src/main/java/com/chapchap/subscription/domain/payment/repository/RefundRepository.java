@@ -17,4 +17,6 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     Optional<Refund> findByOrderId(Long orderId);
 
     Optional<Refund> findBySubscriptionPeriodId(Long subscriptionPeriodId);
+
+    Optional<Refund> findBySubscriptionSettingId(Long subscriptionSettingId);
 }

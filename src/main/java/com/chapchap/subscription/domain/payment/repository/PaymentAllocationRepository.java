@@ -14,4 +14,6 @@ public interface PaymentAllocationRepository extends JpaRepository<PaymentAlloca
     List<PaymentAllocation> findAllByOrderIdOrderByIdAsc(Long orderId);
 
     List<PaymentAllocation> findAllByOrderIdInOrderByIdAsc(List<Long> orderIds);
+
+    void deleteAllByOrderIdIn(List<Long> orderIds);
 }

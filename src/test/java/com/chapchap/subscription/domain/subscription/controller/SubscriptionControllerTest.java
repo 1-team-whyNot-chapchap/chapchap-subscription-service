@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import com.chapchap.subscription.domain.subscription.service.CurrentSubscriptionQueryService;
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
 import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationService;
+import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
 import com.chapchap.subscription.global.response.GlobalResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
@@ -26,7 +27,8 @@ class SubscriptionControllerTest {
     void 인증_사용자_ID로_구독_해지를_요청한다() {
         SubscriptionCancellationService cancellationService = mock(SubscriptionCancellationService.class);
         SubscriptionController controller = new SubscriptionController(
-            mock(FirstSubscriptionService.class), mock(CurrentSubscriptionQueryService.class), cancellationService
+            mock(FirstSubscriptionService.class), mock(CurrentSubscriptionQueryService.class), cancellationService,
+            mock(SettingChangeService.class)
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn("10");
@@ -52,7 +54,8 @@ class SubscriptionControllerTest {
         SubscriptionController controller = new SubscriptionController(
                 firstSubscriptionService,
                 queryService,
-                mock(SubscriptionCancellationService.class)
+                 mock(SubscriptionCancellationService.class),
+                 mock(SettingChangeService.class)
         );
         Authentication authentication = mock(Authentication.class);
         CurrentSubscriptionResponse current = new CurrentSubscriptionResponse(
@@ -82,7 +85,8 @@ class SubscriptionControllerTest {
         SubscriptionController controller = new SubscriptionController(
                 firstSubscriptionService,
                 queryService,
-                mock(SubscriptionCancellationService.class)
+                 mock(SubscriptionCancellationService.class),
+                 mock(SettingChangeService.class)
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn("10");
