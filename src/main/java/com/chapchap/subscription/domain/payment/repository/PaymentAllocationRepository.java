@@ -1,6 +1,8 @@
 package com.chapchap.subscription.domain.payment.repository;
 
 import com.chapchap.subscription.domain.payment.entity.PaymentAllocation;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -16,4 +18,10 @@ public interface PaymentAllocationRepository extends JpaRepository<PaymentAlloca
     List<PaymentAllocation> findAllByOrderIdInOrderByIdAsc(List<Long> orderIds);
 
     void deleteAllByOrderIdIn(List<Long> orderIds);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<PaymentAllocation> findWithLockAllByOrderIdAndOriginalPaymentTransactionId(
+        Long orderId,
+        Long originalPaymentTransactionId
+    );
 }

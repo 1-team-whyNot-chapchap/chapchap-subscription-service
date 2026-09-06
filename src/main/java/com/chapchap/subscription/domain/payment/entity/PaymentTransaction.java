@@ -326,6 +326,37 @@ public class PaymentTransaction {
         return transaction;
     }
 
+    /** 배송 건 환불을 위해 원 결제 하나에 보낼 부분 취소 거래를 만든다. */
+    public static PaymentTransaction createDeliveryCancellation(
+        Long userId, Long subscriptionId, Long subscriptionPeriodId,
+        Long refundId, Long originalPaymentTransactionId, Long transactionAmount,
+        LocalDateTime processingReferenceAt, LocalDate periodStartDate, LocalDate periodEndDate,
+        String externalRequestIdempotencyKey, LocalDateTime occurredAt
+    ) {
+        PaymentTransaction transaction = new PaymentTransaction();
+        transaction.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        transaction.userId = requirePositive(userId, "userId");
+        transaction.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
+        transaction.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
+        transaction.refundId = requirePositive(refundId, "refundId");
+        transaction.originalPaymentTransactionId = requirePositive(
+            originalPaymentTransactionId, "originalPaymentTransactionId");
+        transaction.transactionType = PaymentTransactionType.DELIVERY_PARTIAL_CANCELLATION;
+        transaction.transactionAmount = requirePositive(transactionAmount, "transactionAmount");
+        transaction.processingReferenceAt = requireNonNull(processingReferenceAt, "processingReferenceAt");
+        transaction.periodStartDate = requireNonNull(periodStartDate, "periodStartDate");
+        transaction.periodEndDate = requireNonNull(periodEndDate, "periodEndDate");
+        if (periodEndDate.isBefore(periodStartDate)) throw new IllegalArgumentException("Invalid payment period");
+        transaction.businessDeduplicationKey = PaymentBusinessKeyGenerator.cancellation(
+            refundId, originalPaymentTransactionId);
+        transaction.externalRequestIdempotencyKey = requireText(
+            externalRequestIdempotencyKey, "externalRequestIdempotencyKey");
+        transaction.status = PaymentTransactionStatus.PROCESSING;
+        transaction.paymentStateVersion = 0L;
+        transaction.occurredAt = requireNonNull(occurredAt, "occurredAt");
+        return transaction;
+    }
+
     /**
      * 첫 구독 결제의 외부 성공 응답을 거래에 반영한다.
      *

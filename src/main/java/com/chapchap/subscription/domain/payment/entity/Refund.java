@@ -141,6 +141,23 @@ public class Refund {
         return refund;
     }
 
+    /** Delivery가 확정한 배송 건 한 건의 저장된 주문 배분금액을 환불 대상으로 만든다. */
+    public static Refund createDeliveryPartialCancellation(
+        Long subscriptionId, Long orderId, String externalDeliveryId, Long refundAmount
+    ) {
+        Refund refund = new Refund();
+        refund.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        refund.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
+        refund.orderId = requirePositive(orderId, "orderId");
+        refund.externalDeliveryId = requireText(externalDeliveryId, "externalDeliveryId");
+        refund.refundType = RefundType.DELIVERY_PARTIAL_CANCELLATION;
+        refund.refundAmount = requirePositive(refundAmount, "refundAmount");
+        refund.successfulRefundAmount = 0L;
+        refund.businessDeduplicationKey = "REFUND:DELIVERY:" + externalDeliveryId;
+        refund.status = RefundStatus.PENDING;
+        return refund;
+    }
+
     public void addSuccessfulAmount(long amount, LocalDateTime completedAt) {
         requirePending();
         if (amount <= 0) throw new IllegalArgumentException("amount must be positive");
