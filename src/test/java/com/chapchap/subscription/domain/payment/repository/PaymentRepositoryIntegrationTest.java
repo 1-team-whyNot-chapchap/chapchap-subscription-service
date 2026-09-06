@@ -60,6 +60,36 @@ class PaymentRepositoryIntegrationTest {
     }
 
     @Test
+    void 정기결제_거래는_재시도대기와_새_멱등성키의_처리중_상태를_MySQL에_보존한다() {
+        long periodId = uniquePositiveId();
+        String firstKey = uniqueKey("regular-initial");
+        PaymentTransaction transaction = paymentTransactionRepository.saveAndFlush(
+            PaymentTransaction.createRegularPayment(
+                uniquePositiveId(), uniquePositiveId(), periodId, 100_000L, REQUESTED_AT,
+                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 28), firstKey, REQUESTED_AT
+            )
+        );
+
+        transaction.waitForRegularPaymentRetry();
+        paymentTransactionRepository.saveAndFlush(transaction);
+        entityManager.clear();
+
+        PaymentTransaction waiting = paymentTransactionRepository.findById(transaction.getId()).orElseThrow();
+        assertThat(waiting.getStatus()).isEqualTo(com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus.RETRY_WAITING);
+        assertThat(waiting.getExternalRequestIdempotencyKey()).isNull();
+
+        String retryKey = uniqueKey("regular-retry");
+        waiting.startRegularPaymentRetry(retryKey);
+        paymentTransactionRepository.saveAndFlush(waiting);
+        entityManager.clear();
+
+        PaymentTransaction retrying = paymentTransactionRepository.findById(transaction.getId()).orElseThrow();
+        assertThat(retrying.getStatus()).isEqualTo(com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus.PROCESSING);
+        assertThat(retrying.getExternalRequestIdempotencyKey()).isEqualTo(retryKey);
+        assertThat(retrying.getBusinessDeduplicationKey()).isEqualTo("PAYMENT:REGULAR:" + periodId);
+    }
+
+    @Test
     void 처리_중_거래의_같은_외부요청_멱등성_키는_MySQL_UNIQUE_제약으로_거절된다() {
         String externalRequestIdempotencyKey = uniqueKey("external");
         paymentTransactionRepository.saveAndFlush(

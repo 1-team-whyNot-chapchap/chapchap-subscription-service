@@ -384,6 +384,12 @@ public class Order {
         status = OrderStatus.CANCELED_BEFORE_START;
     }
 
+    /** 오전 정기결제 실패 후 확정 대기 중인 주문의 재시도를 취소한다. */
+    public void cancelAwaitingRegularPayment() {
+        requireAwaitingConfirmation();
+        status = OrderStatus.CANCELED_BEFORE_START;
+    }
+
     /** 설정 변경 확정 때 아직 Delivery에 전달되지 않은 기존 유효 주문을 비활성화한다. */
     public void inactivateForSettingChange() {
         if (status != OrderStatus.ACTIVE || kafkaDeliveryStatus == OrderKafkaDeliveryStatus.COMPLETED) {

@@ -204,6 +204,34 @@ public class PaymentTransaction {
         );
     }
 
+    /** 다음 이용 기간의 정기결제를 외부 요청 전 처리 중 상태로 생성한다. */
+    public static PaymentTransaction createRegularPayment(
+        Long userId,
+        Long subscriptionId,
+        Long subscriptionPeriodId,
+        Long transactionAmount,
+        LocalDateTime processingReferenceAt,
+        LocalDate periodStartDate,
+        LocalDate periodEndDate,
+        String externalRequestIdempotencyKey,
+        LocalDateTime occurredAt
+    ) {
+        PaymentTransaction transaction = new PaymentTransaction(
+            userId,
+            subscriptionId,
+            subscriptionPeriodId,
+            transactionAmount,
+            processingReferenceAt,
+            periodStartDate,
+            periodEndDate,
+            externalRequestIdempotencyKey,
+            occurredAt
+        );
+        transaction.transactionType = PaymentTransactionType.REGULAR_PAYMENT;
+        transaction.businessDeduplicationKey = PaymentBusinessKeyGenerator.regularPayment(subscriptionPeriodId);
+        return transaction;
+    }
+
     public static PaymentTransaction createCancellation(
         Long userId,
         Long subscriptionId,
@@ -367,6 +395,24 @@ public class PaymentTransaction {
         paymentStateVersion++;
     }
 
+    /** 오전 정기결제의 명시적 실패를 같은 날 재시도 대기 상태로 확정한다. */
+    public void waitForRegularPaymentRetry() {
+        requireRegularPaymentTransaction();
+        requireProcessing();
+        complete(PaymentTransactionStatus.RETRY_WAITING);
+    }
+
+    /** 재시도 대기 정기결제를 새 외부 멱등성 키로 다시 처리 중 상태로 변경한다. */
+    public void startRegularPaymentRetry(String newIdempotencyKey) {
+        requireRegularPaymentTransaction();
+        if (status != PaymentTransactionStatus.RETRY_WAITING) {
+            throw new IllegalStateException("Only a retry waiting regular payment can be retried");
+        }
+        externalRequestIdempotencyKey = requireText(newIdempotencyKey, "newIdempotencyKey");
+        status = PaymentTransactionStatus.PROCESSING;
+        paymentStateVersion++;
+    }
+
     private void complete(PaymentTransactionStatus completedStatus) {
         this.externalRequestIdempotencyKey = null;
         this.status = completedStatus;
@@ -388,6 +434,12 @@ public class PaymentTransaction {
             && transactionType != PaymentTransactionType.SETTING_CHANGE_PARTIAL_CANCELLATION
             && transactionType != PaymentTransactionType.DELIVERY_PARTIAL_CANCELLATION) {
             throw new IllegalStateException("Only an original payment cancellation can use this operation");
+        }
+    }
+
+    private void requireRegularPaymentTransaction() {
+        if (transactionType != PaymentTransactionType.REGULAR_PAYMENT) {
+            throw new IllegalStateException("Only a regular payment transaction supports retry");
         }
     }
 
