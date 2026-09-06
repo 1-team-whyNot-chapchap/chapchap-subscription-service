@@ -145,11 +145,15 @@ public class FirstPaymentCompletionService {
             throw new IllegalArgumentException("Allocated amount must equal the payment transaction amount");
         }
 
+        PaymentAllocationType allocationType = transaction.getTransactionType()
+            == com.chapchap.subscription.domain.payment.entity.PaymentTransactionType.SETTING_CHANGE_PAYMENT
+            ? PaymentAllocationType.SETTING_CHANGE_PAYMENT
+            : PaymentAllocationType.FIRST_SUBSCRIPTION_PAYMENT;
         return commands.stream()
             .map(command -> PaymentAllocation.create(
                 command.orderId(),
                 transaction.getId(),
-                PaymentAllocationType.FIRST_SUBSCRIPTION_PAYMENT,
+                allocationType,
                 command.allocationAmount()
             ))
             .toList();

@@ -44,7 +44,7 @@ public class PaymentCancellationExecutionService {
         LocalDateTime requestedAt = LocalDateTime.now(BUSINESS_ZONE_ID);
         var providerResult = client.cancel(new PaymentCancellationRequest(
             originalAttempt.getExternalPaymentId(), cancellation.getExternalRequestIdempotencyKey(),
-            cancellation.getTransactionAmount(), original.getCancelableAmount(), "구독 시작 전 고객 취소"
+            cancellation.getTransactionAmount(), original.getCancelableAmount(), cancellationReason(cancellation.getTransactionType())
         ));
         LocalDateTime respondedAt = LocalDateTime.now(BUSINESS_ZONE_ID);
         return new PaymentCancellationExecutionResult(
@@ -52,5 +52,14 @@ public class PaymentCancellationExecutionService {
             cancellation.getExternalRequestIdempotencyKey(), cancellation.getTransactionAmount(),
             requestedAt, respondedAt, providerResult
         );
+    }
+
+    private String cancellationReason(com.chapchap.subscription.domain.payment.entity.PaymentTransactionType type) {
+        return switch (type) {
+            case SETTING_CHANGE_PARTIAL_CANCELLATION -> "구독 설정 변경 감액";
+            case DELIVERY_PARTIAL_CANCELLATION -> "배송 건 환불";
+            case NEXT_PERIOD_FULL_CANCELLATION -> "다음 이용 기간 취소";
+            default -> "구독 시작 전 고객 취소";
+        };
     }
 }

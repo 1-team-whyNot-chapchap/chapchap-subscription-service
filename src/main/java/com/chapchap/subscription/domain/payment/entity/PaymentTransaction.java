@@ -242,6 +242,62 @@ public class PaymentTransaction {
         return transaction;
     }
 
+    public static PaymentTransaction createSettingChangePayment(
+        Long userId, Long subscriptionId, Long subscriptionPeriodId, Long subscriptionSettingId,
+        Long transactionAmount, LocalDateTime processingReferenceAt, LocalDate periodStartDate,
+        LocalDate periodEndDate, LocalDate settingEffectiveDate,
+        String externalRequestIdempotencyKey, LocalDateTime occurredAt
+    ) {
+        PaymentTransaction transaction = new PaymentTransaction();
+        transaction.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        transaction.userId = requirePositive(userId, "userId");
+        transaction.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
+        transaction.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
+        transaction.subscriptionSettingId = requirePositive(subscriptionSettingId, "subscriptionSettingId");
+        transaction.transactionType = PaymentTransactionType.SETTING_CHANGE_PAYMENT;
+        transaction.transactionAmount = requirePositive(transactionAmount, "transactionAmount");
+        transaction.processingReferenceAt = requireNonNull(processingReferenceAt, "processingReferenceAt");
+        transaction.periodStartDate = requireNonNull(periodStartDate, "periodStartDate");
+        transaction.periodEndDate = requireNonNull(periodEndDate, "periodEndDate");
+        if (periodEndDate.isBefore(periodStartDate)) throw new IllegalArgumentException("Invalid payment period");
+        transaction.settingEffectiveDate = requireNonNull(settingEffectiveDate, "settingEffectiveDate");
+        transaction.businessDeduplicationKey = PaymentBusinessKeyGenerator.settingChange(subscriptionSettingId);
+        transaction.externalRequestIdempotencyKey = requireText(externalRequestIdempotencyKey, "externalRequestIdempotencyKey");
+        transaction.status = PaymentTransactionStatus.PROCESSING;
+        transaction.paymentStateVersion = 0L;
+        transaction.occurredAt = requireNonNull(occurredAt, "occurredAt");
+        return transaction;
+    }
+
+    public static PaymentTransaction createSettingChangeCancellation(
+        Long userId, Long subscriptionId, Long subscriptionPeriodId, Long subscriptionSettingId,
+        Long refundId, Long originalPaymentTransactionId, Long transactionAmount,
+        LocalDateTime processingReferenceAt, LocalDate periodStartDate, LocalDate periodEndDate,
+        LocalDate settingEffectiveDate, String externalRequestIdempotencyKey, LocalDateTime occurredAt
+    ) {
+        PaymentTransaction transaction = new PaymentTransaction();
+        transaction.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        transaction.userId = requirePositive(userId, "userId");
+        transaction.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
+        transaction.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
+        transaction.subscriptionSettingId = requirePositive(subscriptionSettingId, "subscriptionSettingId");
+        transaction.refundId = requirePositive(refundId, "refundId");
+        transaction.originalPaymentTransactionId = requirePositive(originalPaymentTransactionId, "originalPaymentTransactionId");
+        transaction.transactionType = PaymentTransactionType.SETTING_CHANGE_PARTIAL_CANCELLATION;
+        transaction.transactionAmount = requirePositive(transactionAmount, "transactionAmount");
+        transaction.processingReferenceAt = requireNonNull(processingReferenceAt, "processingReferenceAt");
+        transaction.periodStartDate = requireNonNull(periodStartDate, "periodStartDate");
+        transaction.periodEndDate = requireNonNull(periodEndDate, "periodEndDate");
+        if (periodEndDate.isBefore(periodStartDate)) throw new IllegalArgumentException("Invalid payment period");
+        transaction.settingEffectiveDate = requireNonNull(settingEffectiveDate, "settingEffectiveDate");
+        transaction.businessDeduplicationKey = PaymentBusinessKeyGenerator.cancellation(refundId, originalPaymentTransactionId);
+        transaction.externalRequestIdempotencyKey = requireText(externalRequestIdempotencyKey, "externalRequestIdempotencyKey");
+        transaction.status = PaymentTransactionStatus.PROCESSING;
+        transaction.paymentStateVersion = 0L;
+        transaction.occurredAt = requireNonNull(occurredAt, "occurredAt");
+        return transaction;
+    }
+
     /**
      * 첫 구독 결제의 외부 성공 응답을 거래에 반영한다.
      *

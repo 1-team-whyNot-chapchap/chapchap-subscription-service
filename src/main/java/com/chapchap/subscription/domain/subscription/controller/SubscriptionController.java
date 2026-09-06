@@ -1,12 +1,15 @@
 package com.chapchap.subscription.domain.subscription.controller;
 
 import com.chapchap.subscription.domain.subscription.request.FirstSubscriptionRequest;
+import com.chapchap.subscription.domain.subscription.request.SettingChangeRequest;
 import com.chapchap.subscription.domain.subscription.response.CurrentSubscriptionResponse;
 import com.chapchap.subscription.domain.subscription.response.FirstSubscriptionResponse;
 import com.chapchap.subscription.domain.subscription.response.SubscriptionCancellationResponse;
+import com.chapchap.subscription.domain.subscription.response.SettingChangeResponse;
 import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationService;
 import com.chapchap.subscription.domain.subscription.service.CurrentSubscriptionQueryService;
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
+import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
 import com.chapchap.subscription.global.response.GlobalResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ public class SubscriptionController {
     private final FirstSubscriptionService firstSubscriptionService;
     private final CurrentSubscriptionQueryService currentSubscriptionQueryService;
     private final SubscriptionCancellationService subscriptionCancellationService;
+    private final SettingChangeService settingChangeService;
 
     /** Gateway 인증 고객의 현재 구독 상태와 적용 설정을 조회한다. */
     @PreAuthorize("isAuthenticated()")
@@ -51,6 +55,21 @@ public class SubscriptionController {
         return GlobalResponse.success(
             firstSubscriptionService.subscribe(Long.parseLong(authentication.getName()), request)
         );
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/setting-changes")
+    public GlobalResponse<SettingChangeResponse> changeSetting(
+        Authentication authentication, @Valid @RequestBody SettingChangeRequest request
+    ) {
+        return GlobalResponse.success(settingChangeService.change(
+            Long.parseLong(authentication.getName()), request));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/setting-changes/confirm")
+    public GlobalResponse<SettingChangeResponse> confirmSettingChange(Authentication authentication) {
+        return GlobalResponse.success(settingChangeService.confirm(Long.parseLong(authentication.getName())));
     }
 
     /** 현재 상태에 맞는 일반 해지·시작 취소·재시도 중단을 처리한다. */

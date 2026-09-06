@@ -126,6 +126,21 @@ public class Refund {
         return refund;
     }
 
+    public static Refund createSettingChangeReduction(
+        Long subscriptionId, Long subscriptionSettingId, Long refundAmount
+    ) {
+        Refund refund = new Refund();
+        refund.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        refund.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
+        refund.subscriptionSettingId = requirePositive(subscriptionSettingId, "subscriptionSettingId");
+        refund.refundType = RefundType.SETTING_CHANGE_REDUCTION;
+        refund.refundAmount = requirePositive(refundAmount, "refundAmount");
+        refund.successfulRefundAmount = 0L;
+        refund.businessDeduplicationKey = "REFUND:CHANGE:" + subscriptionSettingId;
+        refund.status = RefundStatus.PENDING;
+        return refund;
+    }
+
     public void addSuccessfulAmount(long amount, LocalDateTime completedAt) {
         requirePending();
         if (amount <= 0) throw new IllegalArgumentException("amount must be positive");
