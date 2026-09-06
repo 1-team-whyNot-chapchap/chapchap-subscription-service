@@ -28,10 +28,12 @@ public class SubscriptionRetryStopCancellationService {
             throw new PaymentTransactionProcessingException();
         }
         if (now.toLocalTime().compareTo(java.time.LocalTime.of(13, 0)) >= 0 || subscription.getStatus() != SubscriptionStatus.IN_PROGRESS) throw new SubscriptionCancellationNotAllowedException();
-        var transaction = payments.findAllByUserIdOrderByOccurredAtDescIdDesc(userId).stream().filter(value -> value.getSubscriptionId().equals(subscription.getId()) && value.getStatus() == PaymentTransactionStatus.RETRY_WAITING).findFirst().orElseThrow(SubscriptionCancellationNotAllowedException::new);
-        var period = periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(subscription.getId(), SubscriptionPeriodStatus.SCHEDULED).orElseThrow(SubscriptionCancellationNotAllowedException::new);
+        var transaction = payments.findTopWithLockBySubscriptionIdAndStatusOrderByOccurredAtDescIdDesc(
+            subscription.getId(), PaymentTransactionStatus.RETRY_WAITING
+        ).orElseThrow(SubscriptionCancellationNotAllowedException::new);
+        var period = periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(subscription.getId(), SubscriptionPeriodStatus.AWAITING_CONFIRMATION).orElseThrow(SubscriptionCancellationNotAllowedException::new);
         if (!transaction.getSubscriptionPeriodId().equals(period.getId())) throw new SubscriptionCancellationNotAllowedException();
-        transaction.stopRetry(); period.cancelBeforeStart(now, "REGULAR_PAYMENT_RETRY_CANCELLATION"); orders.findAllBySubscriptionPeriodId(period.getId()).forEach(order -> order.cancelBeforeStart());
+        transaction.stopRetry(); period.cancelAwaitingRegularPayment(now, "REGULAR_PAYMENT_RETRY_CANCELLATION"); orders.findAllBySubscriptionPeriodId(period.getId()).forEach(order -> order.cancelAwaitingRegularPayment());
         SubscriptionStatus previous = subscription.scheduleCancellation(now);
         histories.save(SubscriptionStatusHistory.create(subscription.getId(), previous, SubscriptionStatus.CANCELLATION_SCHEDULED, "CUSTOMER", "REGULAR_PAYMENT_RETRY_STOPPED", now));
     }

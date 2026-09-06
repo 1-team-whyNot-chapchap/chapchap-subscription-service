@@ -2,8 +2,11 @@ package com.chapchap.subscription.domain.payment.repository;
 
 import com.chapchap.subscription.domain.payment.entity.PaymentTransaction;
 import com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,4 +37,22 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
         Long subscriptionPeriodId,
         PaymentTransactionStatus status
     );
+
+    /** 해지와 13시 재시도의 상태 경합을 막도록 최신 재시도 대기 거래를 잠근다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<PaymentTransaction> findTopWithLockBySubscriptionIdAndStatusOrderByOccurredAtDescIdDesc(
+        Long subscriptionId,
+        PaymentTransactionStatus status
+    );
+
+    /** 정기결제 배치가 당일 09시에 시작한 재시도 대기 거래를 생성 순서대로 조회한다. */
+    List<PaymentTransaction> findAllByStatusAndProcessingReferenceAtGreaterThanEqualAndProcessingReferenceAtLessThanOrderByIdAsc(
+        PaymentTransactionStatus status,
+        LocalDateTime referenceStart,
+        LocalDateTime referenceEndExclusive
+    );
+
+    /** 결제 상태 전이를 직렬화하기 위해 거래를 쓰기 잠금으로 조회한다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<PaymentTransaction> findWithLockById(Long id);
 }

@@ -8,6 +8,7 @@ import com.chapchap.subscription.domain.payment.entity.PaymentMethod;
 import com.chapchap.subscription.domain.payment.entity.PaymentMethodStatus;
 import com.chapchap.subscription.domain.payment.entity.PaymentProviderCode;
 import com.chapchap.subscription.domain.payment.entity.PaymentTransaction;
+import com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus;
 import com.chapchap.subscription.domain.payment.entity.Refund;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,6 +59,57 @@ class PaymentRepositoryIntegrationTest {
         assertThatThrownBy(() -> paymentTransactionRepository.saveAndFlush(
             transaction(subscriptionPeriodId, uniqueKey("external"))
         )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void 정기결제_거래는_재시도대기와_새_멱등성키의_처리중_상태를_MySQL에_보존한다() {
+        long periodId = uniquePositiveId();
+        String firstKey = uniqueKey("regular-initial");
+        PaymentTransaction transaction = paymentTransactionRepository.saveAndFlush(
+            PaymentTransaction.createRegularPayment(
+                uniquePositiveId(), uniquePositiveId(), periodId, 100_000L, REQUESTED_AT,
+                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 28), firstKey, REQUESTED_AT
+            )
+        );
+
+        transaction.waitForRegularPaymentRetry();
+        paymentTransactionRepository.saveAndFlush(transaction);
+        entityManager.clear();
+
+        PaymentTransaction waiting = paymentTransactionRepository.findById(transaction.getId()).orElseThrow();
+        assertThat(waiting.getStatus()).isEqualTo(com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus.RETRY_WAITING);
+        assertThat(waiting.getExternalRequestIdempotencyKey()).isNull();
+
+        String retryKey = uniqueKey("regular-retry");
+        waiting.startRegularPaymentRetry(retryKey);
+        paymentTransactionRepository.saveAndFlush(waiting);
+        entityManager.clear();
+
+        PaymentTransaction retrying = paymentTransactionRepository.findById(transaction.getId()).orElseThrow();
+        assertThat(retrying.getStatus()).isEqualTo(com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus.PROCESSING);
+        assertThat(retrying.getExternalRequestIdempotencyKey()).isEqualTo(retryKey);
+        assertThat(retrying.getBusinessDeduplicationKey()).isEqualTo("PAYMENT:REGULAR:" + periodId);
+    }
+
+    @Test
+    void 정기결제_재시도는_다음기간_종료일이_아니라_당일_처리기준시각으로_조회한다() {
+        LocalDate retryDate = LocalDate.of(2026, 9, 6);
+        PaymentTransaction today = regularRetryWaitingTransaction(retryDate.atTime(9, 0));
+        PaymentTransaction yesterday = regularRetryWaitingTransaction(retryDate.minusDays(1).atTime(9, 0));
+        PaymentTransaction tomorrow = regularRetryWaitingTransaction(retryDate.plusDays(1).atTime(9, 0));
+        paymentTransactionRepository.saveAllAndFlush(List.of(today, yesterday, tomorrow));
+        entityManager.clear();
+
+        var found = paymentTransactionRepository
+            .findAllByStatusAndProcessingReferenceAtGreaterThanEqualAndProcessingReferenceAtLessThanOrderByIdAsc(
+                PaymentTransactionStatus.RETRY_WAITING,
+                retryDate.atStartOfDay(),
+                retryDate.plusDays(1).atStartOfDay()
+            );
+
+        assertThat(found).extracting(PaymentTransaction::getId)
+            .containsExactly(today.getId());
+        assertThat(found.getFirst().getPeriodEndDate()).isEqualTo(retryDate.plusDays(28));
     }
 
     @Test
@@ -215,6 +268,22 @@ class PaymentRepositoryIntegrationTest {
             externalRequestIdempotencyKey,
             REQUESTED_AT
         );
+    }
+
+    private PaymentTransaction regularRetryWaitingTransaction(LocalDateTime processingReferenceAt) {
+        PaymentTransaction transaction = PaymentTransaction.createRegularPayment(
+            uniquePositiveId(),
+            uniquePositiveId(),
+            uniquePositiveId(),
+            100_000L,
+            processingReferenceAt,
+            processingReferenceAt.toLocalDate().plusDays(1),
+            processingReferenceAt.toLocalDate().plusDays(28),
+            uniqueKey("regular-retry-waiting"),
+            processingReferenceAt
+        );
+        transaction.waitForRegularPaymentRetry();
+        return transaction;
     }
 
     private PaymentAttempt successAttempt(long transactionId, int sequence, String idempotencyKey) {

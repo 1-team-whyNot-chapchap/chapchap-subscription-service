@@ -7,6 +7,7 @@ import com.chapchap.subscription.domain.holiday.repository.HolidayRepository;
 import com.chapchap.subscription.domain.order.entity.Order;
 import com.chapchap.subscription.domain.order.entity.OrderDeliveryTimeSlot;
 import com.chapchap.subscription.domain.order.repository.OrderRepository;
+import com.chapchap.subscription.domain.payment.service.command.PaymentAllocationCommand;
 import com.chapchap.subscription.domain.subscription.entity.*;
 import com.chapchap.subscription.domain.subscription.repository.*;
 import com.chapchap.subscription.domain.terms.entity.UserTermsAgreement;
@@ -33,32 +34,44 @@ public class NextSubscriptionPeriodPreparationService {
     private final HolidayRepository holidayRepository;
     private final TermsService termsService;
     private final OrderRepository orderRepository;
-    private final KstReferenceTimeProvider timeProvider;
 
-    public NextSubscriptionPeriodPreparationService(SubscriptionPeriodRepository periodRepository, SubscriptionRepository subscriptionRepository, SubscriptionSettingRepository settingRepository, SubscriptionDeliveryConditionRepository conditionRepository, PlanRepository planRepository, MenuRepository menuRepository, AddressRepository addressRepository, HolidayRepository holidayRepository, TermsService termsService, OrderRepository orderRepository, KstReferenceTimeProvider timeProvider) {
+    public NextSubscriptionPeriodPreparationService(SubscriptionPeriodRepository periodRepository, SubscriptionRepository subscriptionRepository, SubscriptionSettingRepository settingRepository, SubscriptionDeliveryConditionRepository conditionRepository, PlanRepository planRepository, MenuRepository menuRepository, AddressRepository addressRepository, HolidayRepository holidayRepository, TermsService termsService, OrderRepository orderRepository) {
         this.periodRepository = periodRepository; this.subscriptionRepository = subscriptionRepository;
         this.settingRepository = settingRepository; this.conditionRepository = conditionRepository;
         this.planRepository = planRepository; this.menuRepository = menuRepository; this.addressRepository = addressRepository;
         this.holidayRepository = holidayRepository; this.termsService = termsService; this.orderRepository = orderRepository;
-        this.timeProvider = timeProvider;
     }
 
-    /** SUB-FN-010의 09:00 처리 전 호출하는, 종료일 도래 대상의 준비 진입점이다. */
-    @Transactional
-    public void prepareDueNextPeriods(LocalDate today) {
-        List<Long> currentIds = periodRepository.findAllByStatusAndPeriodEndDate(SubscriptionPeriodStatus.IN_PROGRESS, today)
+    @Transactional(readOnly = true)
+    public List<Long> findDueCurrentPeriodIds(LocalDate today) {
+        return periodRepository.findAllByStatusAndPeriodEndDate(SubscriptionPeriodStatus.IN_PROGRESS, today)
             .stream().map(SubscriptionPeriod::getId).toList();
-        for (Long currentId : currentIds) prepareIfDue(currentId, today, timeProvider.now());
     }
 
-    private void prepareIfDue(Long currentId, LocalDate today, LocalDateTime referenceAt) {
+    /** 한 구독의 다음 기간과 주문을 만들거나 이미 준비된 동일 스냅샷을 반환한다. */
+    @Transactional
+    public Optional<PreparedNextSubscriptionPeriod> prepareIfDue(
+        Long currentId,
+        LocalDate today,
+        LocalDateTime referenceAt
+    ) {
         SubscriptionPeriod current = periodRepository.findWithLockById(currentId).orElse(null);
-        if (current == null || current.getStatus() != SubscriptionPeriodStatus.IN_PROGRESS || !current.getPeriodEndDate().equals(today)) return;
+        if (current == null || current.getStatus() != SubscriptionPeriodStatus.IN_PROGRESS
+            || !current.getPeriodEndDate().equals(today)) return Optional.empty();
         Subscription subscription = subscriptionRepository.findWithLockById(current.getSubscriptionId()).orElse(null);
-        if (subscription == null || subscription.getStatus() != SubscriptionStatus.IN_PROGRESS) return;
+        if (subscription == null || subscription.getStatus() != SubscriptionStatus.IN_PROGRESS) return Optional.empty();
         int nextSequence = current.getPeriodSequence() + 1;
-        if (periodRepository.findTopBySubscriptionIdOrderByPeriodSequenceDesc(subscription.getId())
-            .map(period -> period.getPeriodSequence() >= nextSequence).orElse(false)) return;
+        Optional<SubscriptionPeriod> latest = periodRepository
+            .findTopBySubscriptionIdOrderByPeriodSequenceDesc(subscription.getId());
+        if (latest.isPresent() && latest.get().getPeriodSequence() >= nextSequence) {
+            SubscriptionPeriod existing = latest.get();
+            if (existing.getPeriodSequence() != nextSequence
+                || existing.getStatus() != SubscriptionPeriodStatus.AWAITING_CONFIRMATION) {
+                return Optional.empty();
+            }
+            return Optional.of(toPrepared(subscription, existing,
+                orderRepository.findAllBySubscriptionPeriodId(existing.getId())));
+        }
 
         LocalDate nextStart = current.getPeriodEndDate().plusDays(1);
         SubscriptionSetting setting = settingRepository.findApplicableSettings(subscription.getId(), SubscriptionSettingStatus.ACTIVE, current.getPeriodEndDate())
@@ -80,7 +93,28 @@ public class NextSubscriptionPeriodPreparationService {
             long mealAmount = Math.multiplyExact(plan.getUnitPrice(), condition.getMealQuantity().longValue());
             orders.add(Order.awaitingConfirmationBuilder().userId(subscription.getUserId()).subscriptionId(subscription.getId()).subscriptionPeriodId(next.getId()).subscriptionSettingId(setting.getId()).termsAgreementId(agreement.getId()).planId(plan.getId()).addressId(address.getId()).menuId(menu.getId()).deliveryDate(date).planName(plan.getName()).menuName(menu.getName()).mealUnitPrice(plan.getUnitPrice()).mealQuantity(condition.getMealQuantity()).mealAmount(mealAmount).deliveryFee(DELIVERY_FEE).discountAmount(0L).actualAllocatedAmount(Math.addExact(mealAmount, DELIVERY_FEE)).recipientName(address.getRecipientName()).recipientPhone(address.getRecipientPhone()).postalCode(address.getPostalCode()).addressLine1(address.getAddressLine1()).addressLine2(address.getAddressLine2()).deliveryMethodCode(address.getDeliveryMethodCode()).otherDeliveryRequest(address.getOtherDeliveryRequest()).entrancePassword(address.getEntrancePassword()).deliveryTimeSlot(toOrderTimeSlot(condition.getDeliveryTimeSlot())).build());
         }
-        orderRepository.saveAll(orders);
+        List<Order> savedOrders = orderRepository.saveAll(orders);
+        return Optional.of(toPrepared(subscription, next, savedOrders == null ? orders : savedOrders));
+    }
+
+    private PreparedNextSubscriptionPeriod toPrepared(
+        Subscription subscription,
+        SubscriptionPeriod period,
+        List<Order> orders
+    ) {
+        List<PaymentAllocationCommand> allocations = orders.stream()
+            .map(order -> new PaymentAllocationCommand(order.getId(), order.getActualAllocatedAmount()))
+            .toList();
+        long totalAmount = allocations.stream()
+            .mapToLong(PaymentAllocationCommand::allocationAmount)
+            .reduce(0L, Math::addExact);
+        if (allocations.isEmpty() || totalAmount <= 0) {
+            throw new IllegalStateException("Regular payment orders are missing");
+        }
+        return new PreparedNextSubscriptionPeriod(
+            subscription.getUserId(), subscription.getId(), period.getId(), period.getPeriodStartDate(),
+            period.getPeriodEndDate(), period.getCalculationReferenceAt(), totalAmount, allocations
+        );
     }
 
     private OrderDeliveryTimeSlot toOrderTimeSlot(DeliveryTimeSlot slot) {

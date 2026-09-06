@@ -140,6 +140,17 @@ public class SubscriptionPeriod {
         startCancelReason = reason;
     }
 
+    /** 오전 정기결제 실패 후 아직 확정되지 않은 다음 기간의 재시도를 취소한다. */
+    public void cancelAwaitingRegularPayment(LocalDateTime canceledAt, String reason) {
+        if (status != SubscriptionPeriodStatus.AWAITING_CONFIRMATION
+                || canceledAt == null || reason == null || reason.isBlank()) {
+            throw new IllegalStateException("확정 대기 기간만 정기결제 재시도를 취소할 수 있습니다.");
+        }
+        status = SubscriptionPeriodStatus.CANCELED_BEFORE_START;
+        startCanceledAt = canceledAt;
+        startCancelReason = reason;
+    }
+
     private void requireAwaitingConfirmation() {
         if (status != SubscriptionPeriodStatus.AWAITING_CONFIRMATION) {
             throw new IllegalStateException("확정 대기 이용 기간만 결제 결과를 반영할 수 있습니다.");

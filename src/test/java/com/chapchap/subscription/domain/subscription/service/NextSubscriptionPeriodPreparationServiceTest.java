@@ -40,14 +40,13 @@ class NextSubscriptionPeriodPreparationServiceTest {
     @Mock private HolidayRepository holidayRepository;
     @Mock private TermsService termsService;
     @Mock private OrderRepository orderRepository;
-    @Mock private KstReferenceTimeProvider timeProvider;
     private NextSubscriptionPeriodPreparationService service;
 
     @BeforeEach
     void setUp() {
         service = new NextSubscriptionPeriodPreparationService(periodRepository, subscriptionRepository, settingRepository,
             conditionRepository, planRepository, menuRepository, addressRepository, holidayRepository, termsService,
-            orderRepository, timeProvider);
+            orderRepository);
     }
 
     @Test
@@ -65,7 +64,6 @@ class NextSubscriptionPeriodPreparationServiceTest {
         Menu menu = mock(Menu.class); when(menu.getId()).thenReturn(30L); when(menu.getName()).thenReturn("MENU");
         Address address = mock(Address.class); when(address.getId()).thenReturn(4L); when(address.getRecipientName()).thenReturn("수령인"); when(address.getRecipientPhone()).thenReturn("01012345678"); when(address.getPostalCode()).thenReturn("12345"); when(address.getAddressLine1()).thenReturn("주소"); when(address.getDeliveryMethodCode()).thenReturn("DIRECT");
         UserTermsAgreement agreement = mock(UserTermsAgreement.class); when(agreement.getId()).thenReturn(5L);
-        when(periodRepository.findAllByStatusAndPeriodEndDate(SubscriptionPeriodStatus.IN_PROGRESS, TODAY)).thenReturn(List.of(current));
         when(periodRepository.findWithLockById(2L)).thenReturn(Optional.of(current));
         when(subscriptionRepository.findWithLockById(1L)).thenReturn(Optional.of(subscription));
         when(periodRepository.findTopBySubscriptionIdOrderByPeriodSequenceDesc(1L)).thenReturn(Optional.of(current));
@@ -76,9 +74,15 @@ class NextSubscriptionPeriodPreparationServiceTest {
         when(holidayRepository.findAllByHolidayDateBetween(any(), any())).thenReturn(List.of());
         when(menuRepository.findByPlanIdAndMenuSequence(eq(20L), anyInt())).thenReturn(Optional.of(menu));
         when(addressRepository.findById(4L)).thenReturn(Optional.of(address));
-        when(timeProvider.now()).thenReturn(LocalDateTime.of(2026, 9, 30, 9, 0));
+        when(orderRepository.saveAll(any())).thenAnswer(invocation -> {
+            List<Order> saved = invocation.getArgument(0);
+            for (int index = 0; index < saved.size(); index++) {
+                ReflectionTestUtils.setField(saved.get(index), "id", 100L + index);
+            }
+            return saved;
+        });
 
-        service.prepareDueNextPeriods(TODAY);
+        service.prepareIfDue(2L, TODAY, LocalDateTime.of(2026, 9, 30, 9, 0));
 
         ArgumentCaptor<List<Order>> captor = ArgumentCaptor.forClass(List.class);
         verify(orderRepository).saveAll(captor.capture());
@@ -93,14 +97,13 @@ class NextSubscriptionPeriodPreparationServiceTest {
     @Test
     void 이미_다음_기간이_있으면_중복_생성하지_않는다() {
         SubscriptionPeriod current = mock(SubscriptionPeriod.class);
-        when(current.getId()).thenReturn(2L); when(current.getStatus()).thenReturn(SubscriptionPeriodStatus.IN_PROGRESS); when(current.getPeriodEndDate()).thenReturn(TODAY); when(current.getSubscriptionId()).thenReturn(1L); when(current.getPeriodSequence()).thenReturn(1);
+        when(current.getStatus()).thenReturn(SubscriptionPeriodStatus.IN_PROGRESS); when(current.getPeriodEndDate()).thenReturn(TODAY); when(current.getSubscriptionId()).thenReturn(1L); when(current.getPeriodSequence()).thenReturn(1);
         Subscription subscription = mock(Subscription.class); when(subscription.getStatus()).thenReturn(SubscriptionStatus.IN_PROGRESS); when(subscription.getId()).thenReturn(1L);
         SubscriptionPeriod existingNext = mock(SubscriptionPeriod.class); when(existingNext.getPeriodSequence()).thenReturn(2);
-        when(periodRepository.findAllByStatusAndPeriodEndDate(SubscriptionPeriodStatus.IN_PROGRESS, TODAY)).thenReturn(List.of(current));
         when(periodRepository.findWithLockById(2L)).thenReturn(Optional.of(current)); when(subscriptionRepository.findWithLockById(1L)).thenReturn(Optional.of(subscription));
-        when(periodRepository.findTopBySubscriptionIdOrderByPeriodSequenceDesc(1L)).thenReturn(Optional.of(existingNext)); when(timeProvider.now()).thenReturn(LocalDateTime.now());
+        when(periodRepository.findTopBySubscriptionIdOrderByPeriodSequenceDesc(1L)).thenReturn(Optional.of(existingNext));
 
-        service.prepareDueNextPeriods(TODAY);
+        service.prepareIfDue(2L, TODAY, LocalDateTime.now());
 
         verify(periodRepository, never()).save(any()); verify(orderRepository, never()).saveAll(any());
     }
