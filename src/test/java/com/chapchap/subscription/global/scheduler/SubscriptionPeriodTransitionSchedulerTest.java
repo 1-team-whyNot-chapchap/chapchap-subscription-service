@@ -1,7 +1,7 @@
 package com.chapchap.subscription.global.scheduler;
 
-import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionPeriodStartService;
 import com.chapchap.subscription.domain.subscription.service.KstReferenceTimeProvider;
+import com.chapchap.subscription.domain.subscription.service.SubscriptionPeriodTransitionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -15,11 +15,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class FirstSubscriptionPeriodStartSchedulerTest {
+class SubscriptionPeriodTransitionSchedulerTest {
     @Test
-    void 시작_스케줄러는_KST_매분으로_등록된다() throws NoSuchMethodException {
-        assertThat(FirstSubscriptionPeriodStartScheduler.class.getAnnotation(Component.class)).isNotNull();
-        Method method = FirstSubscriptionPeriodStartScheduler.class.getMethod("startScheduledFirstPeriods");
+    void 전환_스케줄러는_KST_매분으로_등록된다() throws NoSuchMethodException {
+        assertThat(SubscriptionPeriodTransitionScheduler.class.getAnnotation(Component.class)).isNotNull();
+        Method method = SubscriptionPeriodTransitionScheduler.class.getMethod("transitionScheduledPeriods");
         Scheduled scheduled = method.getAnnotation(Scheduled.class);
 
         assertThat(scheduled.cron()).isEqualTo("0 * * * * *");
@@ -27,14 +27,14 @@ class FirstSubscriptionPeriodStartSchedulerTest {
     }
 
     @Test
-    void 시작_스케줄러는_KST_오늘을_서비스에_전달한다() {
-        FirstSubscriptionPeriodStartService service = mock(FirstSubscriptionPeriodStartService.class);
+    void 전환_스케줄러는_KST_오늘을_서비스에_전달한다() {
+        SubscriptionPeriodTransitionService service = mock(SubscriptionPeriodTransitionService.class);
         KstReferenceTimeProvider timeProvider = mock(KstReferenceTimeProvider.class);
         when(timeProvider.now()).thenReturn(LocalDateTime.of(2026, 9, 7, 0, 1));
-        FirstSubscriptionPeriodStartScheduler scheduler = new FirstSubscriptionPeriodStartScheduler(service, timeProvider);
+        SubscriptionPeriodTransitionScheduler scheduler = new SubscriptionPeriodTransitionScheduler(service, timeProvider);
 
-        scheduler.startScheduledFirstPeriods();
+        scheduler.transitionScheduledPeriods();
 
-        verify(service).startScheduledFirstPeriods(LocalDate.of(2026, 9, 7));
+        verify(service).transitionScheduledPeriods(LocalDate.of(2026, 9, 7));
     }
 }

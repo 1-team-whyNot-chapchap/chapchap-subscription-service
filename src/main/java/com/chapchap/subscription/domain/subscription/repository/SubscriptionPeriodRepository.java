@@ -27,8 +27,7 @@ public interface SubscriptionPeriodRepository extends JpaRepository<Subscription
             LocalDate endDate
     );
 
-    List<SubscriptionPeriod> findAllByPeriodSequenceAndStatusAndPeriodStartDate(
-        Integer periodSequence,
+    List<SubscriptionPeriod> findAllByStatusAndPeriodStartDate(
         SubscriptionPeriodStatus status,
         LocalDate periodStartDate
     );
@@ -40,4 +39,10 @@ public interface SubscriptionPeriodRepository extends JpaRepository<Subscription
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<SubscriptionPeriod> findWithLockById(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<SubscriptionPeriod> findWithLockBySubscriptionIdAndPeriodSequence(
+        Long subscriptionId,
+        Integer periodSequence
+    );
 }
