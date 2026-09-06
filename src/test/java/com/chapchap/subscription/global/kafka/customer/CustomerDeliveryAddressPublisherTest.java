@@ -23,7 +23,7 @@ class CustomerDeliveryAddressPublisherTest {
         properties.setTopic("subscription.delivery-address-events.v1");
         publisher = new CustomerDeliveryAddressPublisher(kafkaTemplate, properties);
         address = Address.create(10L, "집", "수령인", "01012345678", "12345", "대구 주소", null, "DIRECT", null, null, false);
-        ReflectionTestUtils.setField(address, "publicId", "ADR-11111111-1111-4111-8111-111111111111");
+        ReflectionTestUtils.setField(address, "publicId", "11111111-1111-4111-8111-111111111111");
         ReflectionTestUtils.setField(address, "deliveryAddressVersion", 1L);
     }
 

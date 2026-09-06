@@ -87,7 +87,7 @@ class FirstSubscriptionCompletionServiceTest {
     void 결제_성공은_구독_기간_설정_주문과_할인_이력을_함께_확정한다() {
         PreparedFirstSubscription prepared = prepared(true);
         FirstPaymentExecutionResult execution = execution(AutomaticPaymentResult.success(
-            "PAY-1", "TX-1", "PAID"
+            "51111111-1111-4111-8111-111111111111", "TX-1", "PAID"
         ));
 
         AutomaticPaymentStatus result = service.complete(prepared, execution);
@@ -115,7 +115,7 @@ class FirstSubscriptionCompletionServiceTest {
     void 명시적_결제_거절은_모든_사전_데이터를_결제실패로_확정한다() {
         PreparedFirstSubscription prepared = prepared(true);
         FirstPaymentExecutionResult execution = execution(AutomaticPaymentResult.declined(
-            "PAY-1", "DECLINED", "card declined"
+            "51111111-1111-4111-8111-111111111111", "DECLINED", "card declined"
         ));
 
         AutomaticPaymentStatus result = service.complete(prepared, execution);
@@ -144,7 +144,7 @@ class FirstSubscriptionCompletionServiceTest {
     private PreparedFirstSubscription prepared(boolean discountApplied) {
         return new PreparedFirstSubscription(
             1L,
-            "SUB-11111111-1111-4111-8111-111111111111",
+            "11111111-1111-4111-8111-111111111111",
             2L,
             3L,
             SubscriptionStatus.AWAITING_CONFIRMATION,

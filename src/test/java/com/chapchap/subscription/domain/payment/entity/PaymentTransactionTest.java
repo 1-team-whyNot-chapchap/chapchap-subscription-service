@@ -1,5 +1,6 @@
 package com.chapchap.subscription.domain.payment.entity;
 
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -19,7 +20,7 @@ class PaymentTransactionTest {
     void firstPaymentTransactionStartsInProcessingState() {
         PaymentTransaction transaction = createTransaction();
 
-        assertTrue(transaction.getPublicId().startsWith("PAY-"));
+        assertTrue(PublicIdFormat.isUuidV4(transaction.getPublicId()));
         assertEquals(PaymentTransactionType.FIRST_SUBSCRIPTION_PAYMENT, transaction.getTransactionType());
         assertEquals(PaymentTransactionStatus.PROCESSING, transaction.getStatus());
         assertEquals("PAYMENT:FIRST:30", transaction.getBusinessDeduplicationKey());

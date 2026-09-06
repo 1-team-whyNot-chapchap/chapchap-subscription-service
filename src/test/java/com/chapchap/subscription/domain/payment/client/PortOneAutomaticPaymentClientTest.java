@@ -29,7 +29,7 @@ class PortOneAutomaticPaymentClientTest {
     private static final String BASE_URL = "https://api.portone.test";
     private static final String API_SECRET = "test-api-secret";
     private static final String BILLING_KEY = "test-sensitive-billing-key";
-    private static final String PAYMENT_ID = "PAY-test-payment";
+    private static final String PAYMENT_ID = "550e8400-e29b-41d4-a716-446655440000";
     private static final String IDEMPOTENCY_KEY = "FIRST-PAYMENT-test-key-0001";
 
     private MockRestServiceServer server;
@@ -62,7 +62,7 @@ class PortOneAutomaticPaymentClientTest {
                 {
                   "payment": {
                     "status": "PAID",
-                    "id": "PAY-test-payment",
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
                     "transactionId": "portone-transaction-1"
                   }
                 }
@@ -83,7 +83,7 @@ class PortOneAutomaticPaymentClientTest {
                 {
                   "payment": {
                     "status": "FAILED",
-                    "id": "PAY-test-payment",
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
                     "transactionId": "failed-transaction-1",
                     "failure": {
                       "reason": "test-sensitive-billing-key 카드 승인이 거절되었습니다.",
@@ -243,7 +243,7 @@ class PortOneAutomaticPaymentClientTest {
                 {
                   "payment": {
                     "status": "PENDING",
-                    "id": "PAY-test-payment",
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
                     "transactionId": null
                   }
                 }
@@ -261,7 +261,7 @@ class PortOneAutomaticPaymentClientTest {
                 {
                   "payment": {
                     "status": "PAID",
-                    "id": "different-payment-id",
+                    "id": "650e8400-e29b-41d4-a716-446655440000",
                     "transactionId": "portone-transaction-1"
                   }
                 }
@@ -291,7 +291,7 @@ class PortOneAutomaticPaymentClientTest {
             .andRespond(withSuccess("""
                 {
                   "status": "PAID",
-                  "id": "PAY-test-payment",
+                  "id": "550e8400-e29b-41d4-a716-446655440000",
                   "transactionId": "portone-transaction-lookup-1"
                 }
                 """, MediaType.APPLICATION_JSON));
@@ -311,7 +311,7 @@ class PortOneAutomaticPaymentClientTest {
             .andRespond(withSuccess("""
                 {
                   "status": "FAILED",
-                  "id": "PAY-test-payment",
+                  "id": "550e8400-e29b-41d4-a716-446655440000",
                   "failure": {"pgCode": "DECLINED"}
                 }
                 """, MediaType.APPLICATION_JSON));
@@ -331,7 +331,7 @@ class PortOneAutomaticPaymentClientTest {
             .andRespond(withSuccess("""
                 {
                   "status": "PENDING",
-                  "id": "PAY-test-payment"
+                  "id": "550e8400-e29b-41d4-a716-446655440000"
                 }
                 """, MediaType.APPLICATION_JSON));
 
@@ -356,7 +356,7 @@ class PortOneAutomaticPaymentClientTest {
             .andRespond(withSuccess("""
                 {
                   "status": "PAID",
-                  "id": "different-payment-id",
+                  "id": "650e8400-e29b-41d4-a716-446655440000",
                   "transactionId": "portone-transaction-lookup-1"
                 }
                 """, MediaType.APPLICATION_JSON));

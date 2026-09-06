@@ -40,7 +40,8 @@ class DeliveryRefundPreparationServiceTest {
         when(order.getUserId()).thenReturn(10L);
         when(order.getSubscriptionId()).thenReturn(30L);
         when(order.getActualAllocatedAmount()).thenReturn(8_000L);
-        when(orders.findWithLockByPublicId("ORD-1")).thenReturn(Optional.of(order));
+        when(orders.findWithLockByPublicId("550e8400-e29b-41d4-a716-446655440000"))
+            .thenReturn(Optional.of(order));
         when(refunds.findByExternalDeliveryId("delivery-1")).thenReturn(Optional.empty());
         when(refunds.findByOrderId(20L)).thenReturn(Optional.empty());
         when(refunds.saveAndFlush(any())).thenAnswer(invocation -> {
@@ -70,7 +71,7 @@ class DeliveryRefundPreparationServiceTest {
         });
 
         PreparedDeliveryRefund result = service.start(
-            new DeliveryRefundCommand("delivery-1", "ORD-1", 10L));
+            new DeliveryRefundCommand("delivery-1", "550e8400-e29b-41d4-a716-446655440000", 10L));
 
         assertThat(result.cancellationTransactionId()).isEqualTo(50L);
         ArgumentCaptor<PaymentTransaction> saved = ArgumentCaptor.forClass(PaymentTransaction.class);

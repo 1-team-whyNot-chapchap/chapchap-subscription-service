@@ -50,7 +50,7 @@ class DeliveryOrderPublisherServiceTest {
         );
         Order order = activeOrder();
         Menu menu = mock(Menu.class);
-        when(menu.getPublicId()).thenReturn("MNU-00000000-0000-4000-8000-000000000001");
+        when(menu.getPublicId()).thenReturn("00000000-0000-4000-8000-000000000001");
         UserTermsAgreement agreement = UserTermsAgreement.create(10L, 3L, LocalDateTime.of(2026, 9, 1, 10, 0));
         SendResult<String, Object> sendResult = mock(SendResult.class);
         RecordMetadata metadata = mock(RecordMetadata.class);

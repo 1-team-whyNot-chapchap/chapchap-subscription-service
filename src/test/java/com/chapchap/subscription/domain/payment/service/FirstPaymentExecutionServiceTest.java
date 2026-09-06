@@ -54,7 +54,7 @@ class FirstPaymentExecutionServiceTest {
         PaymentTransaction transaction = processingTransaction();
         PaymentMethod paymentMethod = currentPaymentMethod();
         AutomaticPaymentResult providerResult = AutomaticPaymentResult.success(
-            "portone-payment-1",
+            transaction.getPublicId(),
             "transaction-ref-1",
             "PAID"
         );

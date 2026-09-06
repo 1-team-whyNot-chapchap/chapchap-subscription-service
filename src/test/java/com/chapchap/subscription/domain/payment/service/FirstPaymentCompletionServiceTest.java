@@ -104,7 +104,7 @@ class FirstPaymentCompletionServiceTest {
         when(paymentAttemptRepository.existsByIdempotencyKey("request-key-1")).thenReturn(false);
         FirstPaymentExecutionResult executionResult = executionResult(
             AutomaticPaymentResult.providerConfigurationFailed(
-                "portone-payment-1",
+                "550e8400-e29b-41d4-a716-446655440000",
                 "CHANNELNOTFOUND",
                 "외부 결제 연동 설정 오류가 발생했습니다."
             )
@@ -205,7 +205,7 @@ class FirstPaymentCompletionServiceTest {
         when(paymentTransactionRepository.findById(100L)).thenReturn(Optional.of(transaction));
 
         FirstPaymentExecutionResult mismatchedResult = executionResult(AutomaticPaymentResult.success(
-            "different-payment-id",
+            "650e8400-e29b-41d4-a716-446655440000",
             "transaction-ref-1",
             "PAID"
         ));
@@ -224,7 +224,7 @@ class FirstPaymentCompletionServiceTest {
 
     private FirstPaymentExecutionResult successResult() {
         return executionResult(AutomaticPaymentResult.success(
-            "portone-payment-1",
+            "550e8400-e29b-41d4-a716-446655440000",
             "transaction-ref-1",
             "PAID"
         ));
@@ -232,7 +232,7 @@ class FirstPaymentCompletionServiceTest {
 
     private FirstPaymentExecutionResult failureResult() {
         return executionResult(AutomaticPaymentResult.declined(
-            "portone-payment-1",
+            "550e8400-e29b-41d4-a716-446655440000",
             "DECLINED",
             "카드 승인이 거절되었습니다."
         ));
@@ -264,7 +264,7 @@ class FirstPaymentCompletionServiceTest {
             LocalDateTime.of(2026, 9, 3, 15, 0)
         );
         ReflectionTestUtils.setField(transaction, "id", 100L);
-        ReflectionTestUtils.setField(transaction, "publicId", "portone-payment-1");
+        ReflectionTestUtils.setField(transaction, "publicId", "550e8400-e29b-41d4-a716-446655440000");
         return transaction;
     }
 }

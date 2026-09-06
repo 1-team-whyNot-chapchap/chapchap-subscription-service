@@ -18,6 +18,7 @@ import com.chapchap.subscription.domain.subscription.entity.Subscription;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionRepository;
 import com.chapchap.subscription.global.exception.payment.PaymentHistoryNotFoundException;
 import com.chapchap.subscription.global.exception.payment.RefundHistoryNotFoundException;
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +29,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /** 인증 고객의 저장된 결제·환불 이력만 읽고 외부 처리나 상태 변경을 시작하지 않는다. */
@@ -36,13 +36,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PaymentHistoryQueryService {
-    private static final Pattern PAYMENT_PUBLIC_ID = Pattern.compile(
-        "^PAY-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-    );
-    private static final Pattern REFUND_PUBLIC_ID = Pattern.compile(
-        "^REF-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-    );
-
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final PaymentAttemptRepository paymentAttemptRepository;
     private final PaymentMethodRepository paymentMethodRepository;
@@ -270,13 +263,13 @@ public class PaymentHistoryQueryService {
     }
 
     private void validatePaymentId(String paymentId) {
-        if (paymentId == null || !PAYMENT_PUBLIC_ID.matcher(paymentId).matches()) {
+        if (!PublicIdFormat.isUuidV4(paymentId)) {
             throw new IllegalArgumentException("유효하지 않은 결제 공개 식별자입니다.");
         }
     }
 
     private void validateRefundId(String refundId) {
-        if (refundId == null || !REFUND_PUBLIC_ID.matcher(refundId).matches()) {
+        if (!PublicIdFormat.isUuidV4(refundId)) {
             throw new IllegalArgumentException("유효하지 않은 환불 공개 식별자입니다.");
         }
     }

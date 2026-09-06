@@ -6,6 +6,7 @@ import com.chapchap.subscription.domain.order.entity.OrderDeliveryTimeSlot;
 import com.chapchap.subscription.domain.order.entity.OrderKafkaDeliveryStatus;
 import com.chapchap.subscription.domain.order.entity.OrderStatus;
 import com.chapchap.subscription.domain.order.repository.OrderRepository;
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -64,7 +65,7 @@ class FirstOrderServiceTest {
         assertThat(firstOrder.getActualAllocatedAmount()).isEqualTo(18_130L);
         assertThat(firstOrder.getStatus()).isEqualTo(OrderStatus.AWAITING_CONFIRMATION);
         assertThat(firstOrder.getKafkaDeliveryStatus()).isEqualTo(OrderKafkaDeliveryStatus.NOT_SENT);
-        assertThat(firstOrder.getPublicId()).startsWith("ORD-");
+        assertThat(PublicIdFormat.isUuidV4(firstOrder.getPublicId())).isTrue();
     }
 
     @Test

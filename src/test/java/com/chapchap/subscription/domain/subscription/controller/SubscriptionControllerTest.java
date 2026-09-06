@@ -59,7 +59,7 @@ class SubscriptionControllerTest {
         );
         Authentication authentication = mock(Authentication.class);
         CurrentSubscriptionResponse current = new CurrentSubscriptionResponse(
-                "SUB-public",
+                "11111111-1111-4111-8111-111111111111",
                 SubscriptionStatus.ENDED,
                 null,
                 null,

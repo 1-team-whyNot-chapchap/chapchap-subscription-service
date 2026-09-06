@@ -325,7 +325,7 @@ class FirstSubscriptionConcurrencyIntegrationTest {
 
     private Plan plan(String fixtureSuffix) {
         Plan plan = BeanUtils.instantiateClass(Plan.class);
-        planPublicId = "PLN-" + UUID.randomUUID();
+        planPublicId = UUID.randomUUID().toString();
         ReflectionTestUtils.setField(plan, "publicId", planPublicId);
         ReflectionTestUtils.setField(plan, "name", "동시성 통합 테스트 플랜 " + fixtureSuffix);
         ReflectionTestUtils.setField(plan, "description", "동시 신청 통합 테스트 전용 플랜");
@@ -337,7 +337,7 @@ class FirstSubscriptionConcurrencyIntegrationTest {
         List<Menu> menus = new ArrayList<>();
         for (int sequence = 1; sequence <= 31; sequence++) {
             Menu menu = BeanUtils.instantiateClass(Menu.class);
-            ReflectionTestUtils.setField(menu, "publicId", "MNU-" + UUID.randomUUID());
+            ReflectionTestUtils.setField(menu, "publicId", UUID.randomUUID().toString());
             ReflectionTestUtils.setField(menu, "planId", planId);
             ReflectionTestUtils.setField(menu, "menuSequence", sequence);
             ReflectionTestUtils.setField(menu, "name", "동시성 테스트 메뉴 " + fixtureSuffix + "-" + sequence);

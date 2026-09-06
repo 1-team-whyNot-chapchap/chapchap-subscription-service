@@ -48,7 +48,7 @@ class FirstSubscriptionServiceTest {
     @Test
     void 처리중_재요청은_PG를_다시_호출하지_않고_기존_응답을_반환한다() {
         PreparedFirstSubscription prepared = PreparedFirstSubscription.processing(
-            1L, "SUB-11111111-1111-4111-8111-111111111111", 2L,
+            1L, "11111111-1111-4111-8111-111111111111", 2L,
             LocalDate.of(2026, 9, 7), LocalDate.of(2026, 10, 4), 3L
         );
         when(preparationService.prepare(10L, request())).thenReturn(prepared);
@@ -64,7 +64,7 @@ class FirstSubscriptionServiceTest {
     void 결제_성공은_로컬_확정_뒤_SCHEDULED를_반환한다() {
         PreparedFirstSubscription prepared = preparedForPayment();
         FirstPaymentExecutionResult execution = execution(AutomaticPaymentResult.success(
-            "PAY-1", "TX-1", "PAID"
+            "51111111-1111-4111-8111-111111111111", "TX-1", "PAID"
         ));
         when(preparationService.prepare(10L, request())).thenReturn(prepared);
         when(paymentExecutionService.execute(any())).thenReturn(execution);
@@ -80,7 +80,7 @@ class FirstSubscriptionServiceTest {
     void 명시적_결제_거절은_실패_확정_뒤_PAYMENT_008을_발생시킨다() {
         PreparedFirstSubscription prepared = preparedForPayment();
         FirstPaymentExecutionResult execution = execution(AutomaticPaymentResult.declined(
-            "PAY-1", "DECLINED", "card declined"
+            "51111111-1111-4111-8111-111111111111", "DECLINED", "card declined"
         ));
         when(preparationService.prepare(10L, request())).thenReturn(prepared);
         when(paymentExecutionService.execute(any())).thenReturn(execution);
@@ -95,7 +95,7 @@ class FirstSubscriptionServiceTest {
     void Provider_설정_오류는_실패_확정_뒤_PAYMENT_002를_발생시킨다() {
         PreparedFirstSubscription prepared = preparedForPayment();
         FirstPaymentExecutionResult execution = execution(AutomaticPaymentResult.providerConfigurationFailed(
-            "PAY-1", "AUTH_FAILED", "provider configuration"
+            "51111111-1111-4111-8111-111111111111", "AUTH_FAILED", "provider configuration"
         ));
         when(preparationService.prepare(10L, request())).thenReturn(prepared);
         when(paymentExecutionService.execute(any())).thenReturn(execution);
@@ -134,11 +134,11 @@ class FirstSubscriptionServiceTest {
 
     private FirstSubscriptionRequest request() {
         return new FirstSubscriptionRequest(
-            "PLN-11111111-1111-4111-8111-111111111111",
+            "11111111-1111-4111-8111-111111111111",
             List.of(new FirstSubscriptionRequest.DeliveryCondition(
                 DeliveryWeekday.MONDAY,
                 2,
-                "ADR-11111111-1111-4111-8111-111111111111",
+                "21111111-1111-4111-8111-111111111111",
                 DeliveryTimeSlot.TIME_1100_1300
             ))
         );
@@ -147,7 +147,7 @@ class FirstSubscriptionServiceTest {
     private PreparedFirstSubscription preparedForPayment() {
         return new PreparedFirstSubscription(
             1L,
-            "SUB-11111111-1111-4111-8111-111111111111",
+            "11111111-1111-4111-8111-111111111111",
             2L,
             3L,
             SubscriptionStatus.AWAITING_CONFIRMATION,
@@ -166,7 +166,7 @@ class FirstSubscriptionServiceTest {
     private PreparedFirstSubscription processing() {
         return PreparedFirstSubscription.processing(
             1L,
-            "SUB-11111111-1111-4111-8111-111111111111",
+            "11111111-1111-4111-8111-111111111111",
             2L,
             LocalDate.of(2026, 9, 7),
             LocalDate.of(2026, 10, 4),

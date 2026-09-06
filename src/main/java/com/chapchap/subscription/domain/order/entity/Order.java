@@ -77,7 +77,6 @@ import java.util.UUID;
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Order {
-    private static final String PUBLIC_ID_PREFIX = "ORD-";
     private static final String DELIVERY_METHOD_DIRECT = "DIRECT";
     private static final String DELIVERY_METHOD_DOORSTEP = "DOORSTEP";
     private static final String DELIVERY_METHOD_OTHER = "OTHER";
@@ -89,7 +88,7 @@ public class Order {
     @Column(name = "id", columnDefinition = "BIGINT UNSIGNED")
     private Long id;
 
-    @Column(name = "public_id", nullable = false, length = 40, columnDefinition = "CHAR(40)")
+    @Column(name = "public_id", nullable = false, length = 36, columnDefinition = "CHAR(36)")
     private String publicId;
 
     @Column(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
@@ -265,7 +264,7 @@ public class Order {
         OrderDeliveryTimeSlot deliveryTimeSlot
     ) {
         Order order = new Order();
-        order.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        order.publicId = UUID.randomUUID().toString();
         order.userId = requirePositive(userId, "userId");
         order.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
         order.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");

@@ -126,7 +126,7 @@ class SubscriptionCancellationServiceTest {
         Subscription subscription = scheduledSubscription();
         SubscriptionCancellationPreparation prepared = preparation();
         PaymentCancellationExecutionResult executed = executionResult(
-            PaymentCancellationResult.succeeded("PAY-original", "cancel-1")
+            PaymentCancellationResult.succeeded("550e8400-e29b-41d4-a716-446655440000", "cancel-1")
         );
         SubscriptionCancellationResponse expected = org.mockito.Mockito.mock(SubscriptionCancellationResponse.class);
         when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription));
@@ -148,7 +148,7 @@ class SubscriptionCancellationServiceTest {
         Subscription subscription = scheduledSubscription();
         SubscriptionCancellationPreparation prepared = preparation();
         PaymentCancellationExecutionResult executed = executionResult(
-            PaymentCancellationResult.declined("PAY-original", "DECLINED")
+            PaymentCancellationResult.declined("550e8400-e29b-41d4-a716-446655440000", "DECLINED")
         );
         when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription));
         when(preStart.prepare(10L)).thenReturn(prepared);

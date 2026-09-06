@@ -21,6 +21,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 class PortOnePaymentCancellationClientTest {
     private static final String BASE_URL = "https://api.portone.test";
+    private static final String PAYMENT_ID = "550e8400-e29b-41d4-a716-446655440000";
     private MockRestServiceServer server;
     private PortOnePaymentCancellationClient client;
 
@@ -34,7 +35,7 @@ class PortOnePaymentCancellationClientTest {
 
     @Test
     void 원결제_부분취소_요청과_멱등성키를_전송한다() {
-        server.expect(requestTo(BASE_URL + "/payments/PAY-original/cancel"))
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/cancel"))
             .andExpect(method(HttpMethod.POST))
             .andExpect(header("Idempotency-Key", "\"cancel-key-1234567890\""))
             .andExpect(content().json("""
@@ -46,7 +47,7 @@ class PortOnePaymentCancellationClientTest {
                 """, MediaType.APPLICATION_JSON));
 
         PaymentCancellationResult result = client.cancel(new PaymentCancellationRequest(
-            "PAY-original", "cancel-key-1234567890", 3000, 10000, "구독 시작 전 고객 취소"
+            PAYMENT_ID, "cancel-key-1234567890", 3000, 10000, "구독 시작 전 고객 취소"
         ));
 
         assertThat(result.status()).isEqualTo(PaymentCancellationStatus.SUCCEEDED);
@@ -56,12 +57,12 @@ class PortOnePaymentCancellationClientTest {
 
     @Test
     void 명시적인_4xx는_취소실패로_변환한다() {
-        server.expect(requestTo(BASE_URL + "/payments/PAY-original/cancel"))
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/cancel"))
             .andRespond(withStatus(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON)
                 .body("{\"type\":\"CancelAmountExceedsCancellableAmountError\",\"message\":\"detail\"}"));
 
         PaymentCancellationResult result = client.cancel(new PaymentCancellationRequest(
-            "PAY-original", "cancel-key-1234567890", 3000, 10000, "고객 요청"
+            PAYMENT_ID, "cancel-key-1234567890", 3000, 10000, "고객 요청"
         ));
 
         assertThat(result.status()).isEqualTo(PaymentCancellationStatus.DECLINED);
@@ -70,11 +71,11 @@ class PortOnePaymentCancellationClientTest {
 
     @Test
     void 인증실패는_Provider설정실패로_변환한다() {
-        server.expect(requestTo(BASE_URL + "/payments/PAY-original/cancel"))
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/cancel"))
             .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
 
         PaymentCancellationResult result = client.cancel(new PaymentCancellationRequest(
-            "PAY-original", "cancel-key-1234567890", 3000, 10000, "고객 요청"
+            PAYMENT_ID, "cancel-key-1234567890", 3000, 10000, "고객 요청"
         ));
 
         assertThat(result.status()).isEqualTo(PaymentCancellationStatus.PROVIDER_CONFIGURATION_FAILED);
@@ -82,11 +83,11 @@ class PortOnePaymentCancellationClientTest {
 
     @Test
     void 미확정_응답은_처리중을_유지하도록_예외를_발생시킨다() {
-        server.expect(requestTo(BASE_URL + "/payments/PAY-original/cancel"))
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/cancel"))
             .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
 
         assertThatThrownBy(() -> client.cancel(new PaymentCancellationRequest(
-            "PAY-original", "cancel-key-1234567890", 3000, 10000, "고객 요청"
+            PAYMENT_ID, "cancel-key-1234567890", 3000, 10000, "고객 요청"
         ))).isInstanceOf(PaymentProviderUnavailableException.class);
     }
 }

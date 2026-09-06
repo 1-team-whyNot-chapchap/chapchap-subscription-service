@@ -1,5 +1,6 @@
 package com.chapchap.subscription.domain.subscription.entity;
 
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -11,7 +12,7 @@ class SubscriptionTest {
     void 새_구독은_확정_대기로_생성한다() {
         Subscription subscription = Subscription.create(1L);
 
-        assertThat(subscription.getPublicId()).startsWith("SUB-");
+        assertThat(PublicIdFormat.isUuidV4(subscription.getPublicId())).isTrue();
         assertThat(subscription.getUserId()).isEqualTo(1L);
         assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.AWAITING_CONFIRMATION);
         assertThat(subscription.isFirstSubscriptionDiscountUsed()).isFalse();

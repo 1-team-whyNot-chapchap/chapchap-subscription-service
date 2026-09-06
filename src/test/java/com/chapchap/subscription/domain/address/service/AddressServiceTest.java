@@ -10,6 +10,7 @@ import com.chapchap.subscription.domain.subscription.repository.SubscriptionDeli
 import com.chapchap.subscription.domain.subscription.service.KstReferenceTimeProvider;
 import com.chapchap.subscription.global.exception.address.AddressInUseException;
 import com.chapchap.subscription.global.kafka.customer.CustomerDeliveryAddressPublisher;
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -67,6 +68,7 @@ class AddressServiceTest {
     @Test
     void 사용하지_않는_일반_배송지는_소프트_삭제한다() {
         Address address = address();
+        assertThat(PublicIdFormat.isUuidV4(address.getPublicId())).isTrue();
         find(address);
         when(conditionRepository.existsCurrentConditionByAddressId(1L, SubscriptionSettingStatus.ACTIVE, now.toLocalDate())).thenReturn(false);
         when(orderRepository.existsByAddressIdAndStatusAndDeliveryDateGreaterThanEqual(1L, OrderStatus.ACTIVE, now.toLocalDate())).thenReturn(false);

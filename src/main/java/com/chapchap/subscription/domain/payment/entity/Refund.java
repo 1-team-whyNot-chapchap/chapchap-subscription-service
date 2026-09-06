@@ -44,13 +44,12 @@ import java.util.UUID;
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Refund {
-    private static final String PUBLIC_ID_PREFIX = "REF-";
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", columnDefinition = "BIGINT UNSIGNED")
     private Long id;
 
-    @Column(name = "public_id", nullable = false, length = 40, columnDefinition = "CHAR(40)")
+    @Column(name = "public_id", nullable = false, length = 36, columnDefinition = "CHAR(36)")
     private String publicId;
 
     @Column(name = "subscription_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
@@ -114,7 +113,7 @@ public class Refund {
             throw new IllegalArgumentException("Period cancellation requires a period cancellation refund type");
         }
         Refund refund = new Refund();
-        refund.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        refund.publicId = UUID.randomUUID().toString();
         refund.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
         refund.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
         refund.refundType = refundType;
@@ -130,7 +129,7 @@ public class Refund {
         Long subscriptionId, Long subscriptionSettingId, Long refundAmount
     ) {
         Refund refund = new Refund();
-        refund.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        refund.publicId = UUID.randomUUID().toString();
         refund.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
         refund.subscriptionSettingId = requirePositive(subscriptionSettingId, "subscriptionSettingId");
         refund.refundType = RefundType.SETTING_CHANGE_REDUCTION;
@@ -146,7 +145,7 @@ public class Refund {
         Long subscriptionId, Long orderId, String externalDeliveryId, Long refundAmount
     ) {
         Refund refund = new Refund();
-        refund.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        refund.publicId = UUID.randomUUID().toString();
         refund.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
         refund.orderId = requirePositive(orderId, "orderId");
         refund.externalDeliveryId = requireText(externalDeliveryId, "externalDeliveryId");

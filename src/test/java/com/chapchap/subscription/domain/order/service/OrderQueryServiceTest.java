@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class OrderQueryServiceTest {
     private static final Long USER_ID = 10L;
-    private static final String ORDER_PUBLIC_ID = "ORD-550e8400-e29b-41d4-a716-446655440000";
+    private static final String ORDER_PUBLIC_ID = "550e8400-e29b-41d4-a716-446655440000";
 
     @Mock private OrderRepository orderRepository;
     @Mock private MenuRepository menuRepository;
@@ -56,8 +56,8 @@ class OrderQueryServiceTest {
 
     @Test
     void 주문_목록은_최소_필드만_변환한다() {
-        Order recent = listOrder("ORD-recent", LocalDate.of(2026, 9, 8), 17_800L);
-        Order older = listOrder("ORD-older", LocalDate.of(2026, 9, 7), 8_900L);
+        Order recent = listOrder("11111111-1111-4111-8111-111111111111", LocalDate.of(2026, 9, 8), 17_800L);
+        Order older = listOrder("22222222-2222-4222-8222-222222222222", LocalDate.of(2026, 9, 7), 8_900L);
         when(orderRepository.findAllByUserIdOrderByDeliveryDateDescIdDesc(USER_ID))
             .thenReturn(List.of(recent, older));
 
@@ -65,7 +65,10 @@ class OrderQueryServiceTest {
 
         assertThat(response.orders())
             .extracting(OrderListResponse.OrderItemResponse::orderId)
-            .containsExactly("ORD-recent", "ORD-older");
+            .containsExactly(
+                "11111111-1111-4111-8111-111111111111",
+                "22222222-2222-4222-8222-222222222222"
+            );
         assertThat(response.orders().getFirst().amount()).isEqualTo(17_800L);
     }
 
@@ -100,7 +103,7 @@ class OrderQueryServiceTest {
         OrderDetailResponse response = service.getOrder(USER_ID, ORDER_PUBLIC_ID);
 
         assertThat(response.refund()).isNotNull();
-        assertThat(response.refund().refundId()).isEqualTo("REF-public");
+        assertThat(response.refund().refundId()).isEqualTo("650e8400-e29b-41d4-a716-446655440000");
         assertThat(response.refund().status()).isEqualTo(RefundStatus.COMPLETED);
         assertThat(response.refund().requestedAmount()).isEqualTo(17_800L);
         assertThat(response.refund().refundedAmount()).isEqualTo(17_800L);
@@ -213,7 +216,7 @@ class OrderQueryServiceTest {
         lenient().when(refund.getOrderId()).thenReturn(20L);
         lenient().when(refund.getSubscriptionId()).thenReturn(25L);
         lenient().when(refund.getRefundType()).thenReturn(RefundType.DELIVERY_PARTIAL_CANCELLATION);
-        lenient().when(refund.getPublicId()).thenReturn("REF-public");
+        lenient().when(refund.getPublicId()).thenReturn("650e8400-e29b-41d4-a716-446655440000");
         lenient().when(refund.getStatus()).thenReturn(RefundStatus.COMPLETED);
         lenient().when(refund.getRefundAmount()).thenReturn(17_800L);
         lenient().when(refund.getSuccessfulRefundAmount()).thenReturn(17_800L);

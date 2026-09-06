@@ -6,6 +6,7 @@ import com.chapchap.subscription.domain.payment.repository.PaymentTransactionRep
 import com.chapchap.subscription.domain.payment.service.command.FirstPaymentPrepareCommand;
 import com.chapchap.subscription.domain.payment.service.result.PreparedFirstPayment;
 import com.chapchap.subscription.domain.payment.support.PaymentBusinessKeyGenerator;
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -52,7 +53,7 @@ class FirstPaymentPreparationServiceTest {
         assertThat(result.paymentTransactionId()).isEqualTo(100L);
         assertThat(result.status()).isEqualTo(PaymentTransactionStatus.PROCESSING);
         assertThat(result.newlyCreated()).isTrue();
-        assertThat(result.paymentPublicId()).startsWith("PAY-");
+        assertThat(PublicIdFormat.isUuidV4(result.paymentPublicId())).isTrue();
         verify(paymentTransactionRepository).save(any(PaymentTransaction.class));
     }
 
