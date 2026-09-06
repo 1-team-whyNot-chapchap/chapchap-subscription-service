@@ -17,6 +17,7 @@ import org.hibernate.annotations.Check;
 import org.hibernate.annotations.GeneratedColumn;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /** 환불 대상과 여러 원 결제 취소의 집계 결과를 보존하는 환불 업무다. */
 @Getter
@@ -43,6 +44,7 @@ import java.time.LocalDateTime;
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Refund {
+    private static final String PUBLIC_ID_PREFIX = "REF-";
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", columnDefinition = "BIGINT UNSIGNED")
@@ -104,4 +106,69 @@ public class Refund {
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false,
         columnDefinition = "DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)")
     private LocalDateTime updatedAt;
+
+    public static Refund createPeriodCancellation(Long subscriptionId, Long subscriptionPeriodId,
+        RefundType refundType, Long refundAmount) {
+        if (refundType != RefundType.CANCELLATION_BEFORE_START
+            && refundType != RefundType.NEXT_PERIOD_FULL_CANCELLATION) {
+            throw new IllegalArgumentException("Period cancellation requires a period cancellation refund type");
+        }
+        Refund refund = new Refund();
+        refund.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        refund.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
+        refund.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
+        refund.refundType = refundType;
+        refund.refundAmount = requirePositive(refundAmount, "refundAmount");
+        refund.successfulRefundAmount = 0L;
+        refund.businessDeduplicationKey = (refundType == RefundType.CANCELLATION_BEFORE_START
+            ? "REFUND:START:" : "REFUND:NEXT:") + subscriptionPeriodId;
+        refund.status = RefundStatus.PENDING;
+        return refund;
+    }
+
+    public void addSuccessfulAmount(long amount, LocalDateTime completedAt) {
+        requirePending();
+        if (amount <= 0) throw new IllegalArgumentException("amount must be positive");
+        successfulRefundAmount = Math.addExact(successfulRefundAmount, amount);
+        if (successfulRefundAmount > refundAmount) {
+            throw new IllegalStateException("Successful refund amount exceeds requested amount");
+        }
+        if (successfulRefundAmount.equals(refundAmount)) {
+            status = RefundStatus.COMPLETED;
+            this.completedAt = requireNonNull(completedAt, "completedAt");
+        }
+    }
+
+    public void markFailed(String failureReason) {
+        requirePending();
+        this.failureReason = requireText(failureReason, "failureReason");
+        status = successfulRefundAmount == 0L ? RefundStatus.FAILED : RefundStatus.REVIEW_REQUIRED;
+    }
+
+    public void retry() {
+        if (status != RefundStatus.FAILED || successfulRefundAmount != 0L) {
+            throw new IllegalStateException("Only a fully failed period refund can be retried");
+        }
+        status = RefundStatus.PENDING;
+        failureReason = null;
+    }
+
+    private void requirePending() {
+        if (status != RefundStatus.PENDING) throw new IllegalStateException("Only a pending refund can be completed");
+    }
+
+    private static Long requirePositive(Long value, String fieldName) {
+        if (value == null || value <= 0) throw new IllegalArgumentException(fieldName + " must be positive");
+        return value;
+    }
+
+    private static <T> T requireNonNull(T value, String fieldName) {
+        if (value == null) throw new IllegalArgumentException(fieldName + " must not be null");
+        return value;
+    }
+
+    private static String requireText(String value, String fieldName) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(fieldName + " must not be blank");
+        return value;
+    }
 }

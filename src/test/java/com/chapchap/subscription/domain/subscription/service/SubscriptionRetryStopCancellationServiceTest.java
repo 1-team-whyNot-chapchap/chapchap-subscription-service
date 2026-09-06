@@ -21,7 +21,7 @@ class SubscriptionRetryStopCancellationServiceTest {
         SubscriptionRetryStopCancellationService service=new SubscriptionRetryStopCancellationService(subscriptions,periods,payments,orders,histories,time);
         Subscription subscription=Subscription.create(10L); ReflectionTestUtils.setField(subscription,"id",1L); subscription.markScheduled(); subscription.startFirstPeriod();
         SubscriptionPeriod period=SubscriptionPeriod.createAwaitingConfirmation(1L,2,LocalDate.of(2026,9,10),LocalDateTime.now()); period.markScheduled(); ReflectionTestUtils.setField(period,"id",2L);
-        PaymentTransaction transaction=mock(PaymentTransaction.class); when(transaction.getSubscriptionId()).thenReturn(1L); when(transaction.getStatus()).thenReturn(PaymentTransactionStatus.RETRY_WAITING);
+        PaymentTransaction transaction=mock(PaymentTransaction.class); when(transaction.getSubscriptionId()).thenReturn(1L); when(transaction.getSubscriptionPeriodId()).thenReturn(2L); when(transaction.getStatus()).thenReturn(PaymentTransactionStatus.RETRY_WAITING);
         Order order=mock(Order.class);
         when(subscriptions.findWithLockByUserId(10L)).thenReturn(Optional.of(subscription)); when(time.now()).thenReturn(LocalDateTime.of(2026,9,9,12,0)); when(payments.findAllByUserIdOrderByOccurredAtDescIdDesc(10L)).thenReturn(List.of(transaction)); when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(1L,SubscriptionPeriodStatus.SCHEDULED)).thenReturn(Optional.of(period)); when(orders.findAllBySubscriptionPeriodId(2L)).thenReturn(List.of(order));
         service.cancel(10L);

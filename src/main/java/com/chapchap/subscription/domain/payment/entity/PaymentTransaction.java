@@ -204,6 +204,44 @@ public class PaymentTransaction {
         );
     }
 
+    public static PaymentTransaction createCancellation(
+        Long userId,
+        Long subscriptionId,
+        Long subscriptionPeriodId,
+        Long refundId,
+        Long originalPaymentTransactionId,
+        PaymentTransactionType transactionType,
+        Long transactionAmount,
+        LocalDateTime processingReferenceAt,
+        LocalDate periodStartDate,
+        LocalDate periodEndDate,
+        String externalRequestIdempotencyKey,
+        LocalDateTime occurredAt
+    ) {
+        if (transactionType != PaymentTransactionType.CANCELLATION_BEFORE_START
+            && transactionType != PaymentTransactionType.NEXT_PERIOD_FULL_CANCELLATION) {
+            throw new IllegalArgumentException("Unsupported period cancellation transaction type");
+        }
+        PaymentTransaction transaction = new PaymentTransaction();
+        transaction.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        transaction.userId = requirePositive(userId, "userId");
+        transaction.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
+        transaction.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
+        transaction.refundId = requirePositive(refundId, "refundId");
+        transaction.originalPaymentTransactionId = requirePositive(originalPaymentTransactionId, "originalPaymentTransactionId");
+        transaction.transactionType = requireNonNull(transactionType, "transactionType");
+        transaction.transactionAmount = requirePositive(transactionAmount, "transactionAmount");
+        transaction.processingReferenceAt = requireNonNull(processingReferenceAt, "processingReferenceAt");
+        transaction.periodStartDate = requireNonNull(periodStartDate, "periodStartDate");
+        transaction.periodEndDate = requireNonNull(periodEndDate, "periodEndDate");
+        transaction.businessDeduplicationKey = PaymentBusinessKeyGenerator.cancellation(refundId, originalPaymentTransactionId);
+        transaction.externalRequestIdempotencyKey = requireText(externalRequestIdempotencyKey, "externalRequestIdempotencyKey");
+        transaction.status = PaymentTransactionStatus.PROCESSING;
+        transaction.paymentStateVersion = 0L;
+        transaction.occurredAt = requireNonNull(occurredAt, "occurredAt");
+        return transaction;
+    }
+
     /**
      * 첫 구독 결제의 외부 성공 응답을 거래에 반영한다.
      *
@@ -233,6 +271,37 @@ public class PaymentTransaction {
         complete(PaymentTransactionStatus.FAILED);
     }
 
+    public void markCancellationSucceeded() {
+        requireCancellationTransaction();
+        requireProcessing();
+        complete(PaymentTransactionStatus.SUCCESS);
+    }
+
+    public void markCancellationFailed() {
+        requireCancellationTransaction();
+        markAsFailed();
+    }
+
+    public void retryCancellation(String newIdempotencyKey) {
+        requireCancellationTransaction();
+        if (status != PaymentTransactionStatus.FAILED) {
+            throw new IllegalStateException("Only a failed cancellation can be retried");
+        }
+        externalRequestIdempotencyKey = requireText(newIdempotencyKey, "newIdempotencyKey");
+        status = PaymentTransactionStatus.PROCESSING;
+        paymentStateVersion++;
+    }
+
+    public void applySuccessfulCancellation(long amount) {
+        if (status != PaymentTransactionStatus.SUCCESS
+            || originalPaymentAmount == null || cumulativeCancelAmount == null || cancelableAmount == null
+            || amount <= 0 || amount > cancelableAmount) {
+            throw new IllegalStateException("Cancellation amount exceeds original payment balance");
+        }
+        cumulativeCancelAmount = Math.addExact(cumulativeCancelAmount, amount);
+        cancelableAmount -= amount;
+    }
+
     /** 고객 해지로 같은 날 13시 정기결제 재시도를 중단한다. */
     public void stopRetry() {
         if (status != PaymentTransactionStatus.RETRY_WAITING) {
@@ -254,6 +323,15 @@ public class PaymentTransaction {
         }
         if (externalRequestIdempotencyKey == null) {
             throw new IllegalStateException("A processing payment transaction must have an external request idempotency key");
+        }
+    }
+
+    private void requireCancellationTransaction() {
+        if (transactionType != PaymentTransactionType.CANCELLATION_BEFORE_START
+            && transactionType != PaymentTransactionType.NEXT_PERIOD_FULL_CANCELLATION
+            && transactionType != PaymentTransactionType.SETTING_CHANGE_PARTIAL_CANCELLATION
+            && transactionType != PaymentTransactionType.DELIVERY_PARTIAL_CANCELLATION) {
+            throw new IllegalStateException("Only an original payment cancellation can use this operation");
         }
     }
 

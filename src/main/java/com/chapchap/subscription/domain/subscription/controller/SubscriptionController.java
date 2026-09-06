@@ -3,6 +3,8 @@ package com.chapchap.subscription.domain.subscription.controller;
 import com.chapchap.subscription.domain.subscription.request.FirstSubscriptionRequest;
 import com.chapchap.subscription.domain.subscription.response.CurrentSubscriptionResponse;
 import com.chapchap.subscription.domain.subscription.response.FirstSubscriptionResponse;
+import com.chapchap.subscription.domain.subscription.response.SubscriptionCancellationResponse;
+import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationService;
 import com.chapchap.subscription.domain.subscription.service.CurrentSubscriptionQueryService;
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
 import com.chapchap.subscription.global.response.GlobalResponse;
@@ -11,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SubscriptionController {
     private final FirstSubscriptionService firstSubscriptionService;
     private final CurrentSubscriptionQueryService currentSubscriptionQueryService;
+    private final SubscriptionCancellationService subscriptionCancellationService;
 
     /** Gateway 인증 고객의 현재 구독 상태와 적용 설정을 조회한다. */
     @PreAuthorize("isAuthenticated()")
@@ -46,6 +50,15 @@ public class SubscriptionController {
     ) {
         return GlobalResponse.success(
             firstSubscriptionService.subscribe(Long.parseLong(authentication.getName()), request)
+        );
+    }
+
+    /** 현재 상태에 맞는 일반 해지·시작 취소·재시도 중단을 처리한다. */
+    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping
+    public GlobalResponse<SubscriptionCancellationResponse> cancel(Authentication authentication) {
+        return GlobalResponse.success(
+            subscriptionCancellationService.cancel(Long.parseLong(authentication.getName()))
         );
     }
 }

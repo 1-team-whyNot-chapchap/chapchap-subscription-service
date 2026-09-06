@@ -23,6 +23,7 @@ public enum ErrorCode {
     , PAYMENT_TRANSACTION_PROCESSING("PAYMENT_010", HttpStatus.CONFLICT, "관련 결제 거래가 처리 중입니다.")
     , PAYMENT_HISTORY_NOT_FOUND("PAYMENT_011", HttpStatus.NOT_FOUND, "결제 내역을 찾을 수 없습니다.")
     , REFUND_HISTORY_NOT_FOUND("PAYMENT_012", HttpStatus.NOT_FOUND, "환불 내역을 찾을 수 없습니다.")
+    , PAYMENT_CANCELLATION_FAILED("PAYMENT_013", HttpStatus.CONFLICT, "원 결제 취소가 승인되지 않았습니다.")
 
     // === Address ===
     , ADDRESS_NOT_FOUND("ADDRESS_001", HttpStatus.NOT_FOUND, "배송지를 찾을 수 없습니다.")

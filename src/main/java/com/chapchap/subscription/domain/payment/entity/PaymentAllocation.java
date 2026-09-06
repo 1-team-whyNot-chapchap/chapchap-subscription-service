@@ -115,6 +115,18 @@ public class PaymentAllocation {
         return new PaymentAllocation(orderId, originalPaymentTransactionId, allocationType, allocatedAmount);
     }
 
+    public void cancel(long amount) {
+        long currentCancelable = currentCancelableAmount();
+        if (amount <= 0 || amount > currentCancelable) {
+            throw new IllegalArgumentException("Cancellation amount exceeds allocation balance");
+        }
+        cumulativeCancelledAmount = Math.addExact(cumulativeCancelledAmount, amount);
+    }
+
+    public long currentCancelableAmount() {
+        return allocatedAmount - cumulativeCancelledAmount;
+    }
+
     private static Long requirePositive(Long value, String fieldName) {
         if (value == null || value <= 0) {
             throw new IllegalArgumentException(fieldName + " must be positive");

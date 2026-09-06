@@ -12,4 +12,6 @@ public interface PaymentAllocationRepository extends JpaRepository<PaymentAlloca
 
     /** 주문 한 건에 연결된 원 결제별 금액 배분을 식별자 순서로 조회한다. */
     List<PaymentAllocation> findAllByOrderIdOrderByIdAsc(Long orderId);
+
+    List<PaymentAllocation> findAllByOrderIdInOrderByIdAsc(List<Long> orderIds);
 }
