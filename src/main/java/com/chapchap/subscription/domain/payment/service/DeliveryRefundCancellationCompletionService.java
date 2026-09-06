@@ -11,6 +11,7 @@ import com.chapchap.subscription.domain.payment.repository.PaymentTransactionRep
 import com.chapchap.subscription.domain.payment.repository.RefundRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.chapchap.subscription.global.kafka.customer.CustomerRefundEventPublisher;
 
 import java.util.List;
 
@@ -21,17 +22,20 @@ public class DeliveryRefundCancellationCompletionService {
     private final PaymentAttemptRepository attempts;
     private final PaymentAllocationRepository allocations;
     private final RefundRepository refunds;
+    private final CustomerRefundEventPublisher customerRefundPublisher;
 
     public DeliveryRefundCancellationCompletionService(
         PaymentTransactionRepository payments,
         PaymentAttemptRepository attempts,
         PaymentAllocationRepository allocations,
-        RefundRepository refunds
+        RefundRepository refunds,
+        CustomerRefundEventPublisher customerRefundPublisher
     ) {
         this.payments = payments;
         this.attempts = attempts;
         this.allocations = allocations;
         this.refunds = refunds;
+        this.customerRefundPublisher = customerRefundPublisher;
     }
 
     @Transactional
@@ -57,6 +61,7 @@ public class DeliveryRefundCancellationCompletionService {
                 provider.externalPaymentId(), provider.externalResultCode(), provider.failureReason()));
             cancellation.markCancellationFailed();
             refund.markFailed(provider.failureReason());
+            customerRefundPublisher.publishTerminalAfterCommit(refund, cancellation, result.respondedAt());
             return refund.getStatus();
         }
 
@@ -80,6 +85,7 @@ public class DeliveryRefundCancellationCompletionService {
         original.applySuccessfulCancellation(result.requestedAmount());
         cancellation.markCancellationSucceeded();
         refund.addSuccessfulAmount(result.requestedAmount(), result.respondedAt());
+        customerRefundPublisher.publishTerminalAfterCommit(refund, cancellation, result.respondedAt());
         return refund.getStatus();
     }
 }

@@ -12,6 +12,7 @@ import com.chapchap.subscription.domain.payment.repository.PaymentTransactionRep
 import com.chapchap.subscription.domain.payment.repository.RefundRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.chapchap.subscription.global.kafka.customer.CustomerRefundEventPublisher;
 
 import java.util.HashSet;
 
@@ -23,15 +24,18 @@ public class PaymentCancellationCompletionService {
     private final PaymentAllocationRepository allocations;
     private final RefundRepository refunds;
     private final OrderRepository orders;
+    private final CustomerRefundEventPublisher customerRefundPublisher;
 
     public PaymentCancellationCompletionService(PaymentTransactionRepository payments,
         PaymentAttemptRepository attempts, PaymentAllocationRepository allocations,
-        RefundRepository refunds, OrderRepository orders) {
+        RefundRepository refunds, OrderRepository orders,
+        CustomerRefundEventPublisher customerRefundPublisher) {
         this.payments = payments;
         this.attempts = attempts;
         this.allocations = allocations;
         this.refunds = refunds;
         this.orders = orders;
+        this.customerRefundPublisher = customerRefundPublisher;
     }
 
     @Transactional
@@ -72,6 +76,7 @@ public class PaymentCancellationCompletionService {
             original.applySuccessfulCancellation(result.requestedAmount());
             cancellation.markCancellationSucceeded();
             refund.addSuccessfulAmount(result.requestedAmount(), result.respondedAt());
+            customerRefundPublisher.publishTerminalAfterCommit(refund, cancellation, result.respondedAt());
             return refund.getStatus();
         }
 
@@ -82,6 +87,7 @@ public class PaymentCancellationCompletionService {
         ));
         cancellation.markCancellationFailed();
         refund.markFailed(provider.failureReason());
+        customerRefundPublisher.publishTerminalAfterCommit(refund, cancellation, result.respondedAt());
         return refund.getStatus();
     }
 }

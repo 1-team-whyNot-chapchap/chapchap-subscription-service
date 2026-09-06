@@ -18,6 +18,7 @@ import com.chapchap.subscription.domain.payment.service.exception.PaymentTransac
 import com.chapchap.subscription.domain.payment.service.result.FirstPaymentExecutionResult;
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionPeriod;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionPeriodRepository;
+import com.chapchap.subscription.global.kafka.customer.CustomerPaymentEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,19 +34,22 @@ public class RegularPaymentCompletionService {
     private final PaymentAllocationRepository allocationRepository;
     private final SubscriptionPeriodRepository periodRepository;
     private final OrderRepository orderRepository;
+    private final CustomerPaymentEventPublisher customerPaymentPublisher;
 
     public RegularPaymentCompletionService(
         PaymentTransactionRepository transactionRepository,
         PaymentAttemptRepository attemptRepository,
         PaymentAllocationRepository allocationRepository,
         SubscriptionPeriodRepository periodRepository,
-        OrderRepository orderRepository
+        OrderRepository orderRepository,
+        CustomerPaymentEventPublisher customerPaymentPublisher
     ) {
         this.transactionRepository = transactionRepository;
         this.attemptRepository = attemptRepository;
         this.allocationRepository = allocationRepository;
         this.periodRepository = periodRepository;
         this.orderRepository = orderRepository;
+        this.customerPaymentPublisher = customerPaymentPublisher;
     }
 
     /** 오전 첫 시도 또는 오후 마지막 시도의 명시적 응답을 확정한다. */
@@ -87,6 +91,13 @@ public class RegularPaymentCompletionService {
             failPeriodAndOrders(transaction.getSubscriptionPeriodId());
         } else {
             transaction.waitForRegularPaymentRetry();
+        }
+        if (provider.isPaid()) {
+            customerPaymentPublisher.publishCompletedAfterCommit(transaction.getId(), execution.respondedAt());
+        } else {
+            customerPaymentPublisher.publishRegularFailureAfterCommit(
+                transaction.getId(), execution.respondedAt(), finalAttempt
+            );
         }
         return provider.status();
     }

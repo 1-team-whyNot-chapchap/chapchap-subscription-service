@@ -20,6 +20,7 @@ import com.chapchap.subscription.domain.subscription.repository.SubscriptionRepo
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionSettingRepository;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionStatusHistoryRepository;
 import com.chapchap.subscription.global.kafka.auth.AuthSubscriptionStatusPublisher;
+import com.chapchap.subscription.global.kafka.customer.CustomerPaymentEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +50,7 @@ class FirstSubscriptionCompletionServiceTest {
     @Mock private SubscriptionStatusHistoryRepository historyRepository;
     @Mock private KstReferenceTimeProvider timeProvider;
     @Mock private AuthSubscriptionStatusPublisher authStatusPublisher;
+    @Mock private CustomerPaymentEventPublisher customerPaymentPublisher;
 
     private FirstSubscriptionCompletionService service;
     private Subscription subscription;
@@ -64,7 +66,7 @@ class FirstSubscriptionCompletionServiceTest {
             periodRepository,
             settingRepository,
             historyRepository,
-            timeProvider, authStatusPublisher
+            timeProvider, authStatusPublisher, customerPaymentPublisher
         );
         subscription = Subscription.create(10L);
         ReflectionTestUtils.setField(subscription, "id", 1L);
@@ -108,6 +110,9 @@ class FirstSubscriptionCompletionServiceTest {
         verify(firstOrderService).activateAfterPayment(2L, List.of(4L, 5L));
         verify(authStatusPublisher).publishAfterCommit(subscription, SubscriptionStatus.AWAITING_CONFIRMATION,
             SubscriptionStatus.SCHEDULED, LocalDateTime.of(2026, 9, 4, 10, 1));
+        verify(customerPaymentPublisher).publishCompletedAfterCommit(
+            execution.paymentTransactionId(), execution.respondedAt()
+        );
         assertHistory(SubscriptionStatus.SCHEDULED, "FIRST_PAYMENT_SUCCEEDED");
     }
 
@@ -127,6 +132,8 @@ class FirstSubscriptionCompletionServiceTest {
         assertThat(setting.getStatus()).isEqualTo(SubscriptionSettingStatus.PAYMENT_FAILED);
         verify(paymentCompletionService).complete(execution, List.of());
         verify(firstOrderService).markPaymentFailed(2L, List.of(4L, 5L));
+        verify(customerPaymentPublisher, org.mockito.Mockito.never())
+            .publishCompletedAfterCommit(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
         assertHistory(SubscriptionStatus.PAYMENT_FAILED, "FIRST_PAYMENT_DECLINED");
     }
 

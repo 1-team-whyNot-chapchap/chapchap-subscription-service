@@ -14,12 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.chapchap.subscription.global.exception.payment.PaymentTransactionProcessingException;
 import com.chapchap.subscription.global.exception.subscription.SubscriptionCancellationNotAllowedException;
 import com.chapchap.subscription.global.exception.subscription.SubscriptionNotFoundException;
+import com.chapchap.subscription.global.kafka.customer.CustomerPaymentEventPublisher;
+import com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher;
 
 /** 09시 정기결제 실패 뒤 13시 전 고객 해지로 재시도를 중단한다. */
 @Service
 public class SubscriptionRetryStopCancellationService {
-    private final SubscriptionRepository subscriptions; private final SubscriptionPeriodRepository periods; private final PaymentTransactionRepository payments; private final OrderRepository orders; private final SubscriptionStatusHistoryRepository histories; private final KstReferenceTimeProvider time;
-    public SubscriptionRetryStopCancellationService(SubscriptionRepository subscriptions, SubscriptionPeriodRepository periods, PaymentTransactionRepository payments, OrderRepository orders, SubscriptionStatusHistoryRepository histories, KstReferenceTimeProvider time) { this.subscriptions=subscriptions; this.periods=periods; this.payments=payments; this.orders=orders; this.histories=histories; this.time=time; }
+    private final SubscriptionRepository subscriptions; private final SubscriptionPeriodRepository periods; private final PaymentTransactionRepository payments; private final OrderRepository orders; private final SubscriptionStatusHistoryRepository histories; private final KstReferenceTimeProvider time; private final CustomerPaymentEventPublisher customerPaymentPublisher; private final CustomerSubscriptionNotificationPublisher customerNotificationPublisher;
+    public SubscriptionRetryStopCancellationService(SubscriptionRepository subscriptions, SubscriptionPeriodRepository periods, PaymentTransactionRepository payments, OrderRepository orders, SubscriptionStatusHistoryRepository histories, KstReferenceTimeProvider time, CustomerPaymentEventPublisher customerPaymentPublisher, CustomerSubscriptionNotificationPublisher customerNotificationPublisher) { this.subscriptions=subscriptions; this.periods=periods; this.payments=payments; this.orders=orders; this.histories=histories; this.time=time; this.customerPaymentPublisher=customerPaymentPublisher; this.customerNotificationPublisher=customerNotificationPublisher; }
     @Transactional
     public void cancel(Long userId) {
         var subscription = subscriptions.findWithLockByUserId(userId).orElseThrow(SubscriptionNotFoundException::new);
@@ -36,5 +38,9 @@ public class SubscriptionRetryStopCancellationService {
         transaction.stopRetry(); period.cancelAwaitingRegularPayment(now, "REGULAR_PAYMENT_RETRY_CANCELLATION"); orders.findAllBySubscriptionPeriodId(period.getId()).forEach(order -> order.cancelAwaitingRegularPayment());
         SubscriptionStatus previous = subscription.scheduleCancellation(now);
         histories.save(SubscriptionStatusHistory.create(subscription.getId(), previous, SubscriptionStatus.CANCELLATION_SCHEDULED, "CUSTOMER", "REGULAR_PAYMENT_RETRY_STOPPED", now));
+        customerPaymentPublisher.publishRetryStoppedAfterCommit(transaction, now);
+        customerNotificationPublisher.publishNextPeriodCancellationAfterCommit(
+            subscription, "NOT_REQUIRED", now
+        );
     }
 }

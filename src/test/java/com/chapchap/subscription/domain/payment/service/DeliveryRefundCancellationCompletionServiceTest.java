@@ -57,7 +57,8 @@ class DeliveryRefundCancellationCompletionServiceTest {
         var attempts = mock(PaymentAttemptRepository.class);
         var allocations = mock(PaymentAllocationRepository.class);
         var refunds = mock(RefundRepository.class);
-        var service = new DeliveryRefundCancellationCompletionService(payments, attempts, allocations, refunds);
+        var service = new DeliveryRefundCancellationCompletionService(payments, attempts, allocations, refunds,
+            mock(com.chapchap.subscription.global.kafka.customer.CustomerRefundEventPublisher.class));
         LocalDateTime now = LocalDateTime.of(2026, 9, 6, 18, 0);
         PaymentTransaction original = PaymentTransaction.createFirstSubscriptionPayment(
             10L, 1L, 2L, 10_000L, now, LocalDate.of(2026, 9, 1),

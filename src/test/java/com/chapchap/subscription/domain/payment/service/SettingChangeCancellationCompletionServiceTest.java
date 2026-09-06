@@ -33,7 +33,8 @@ class SettingChangeCancellationCompletionServiceTest {
         var allocations = mock(PaymentAllocationRepository.class);
         var refunds = mock(RefundRepository.class);
         var amounts = mock(SettingChangeAmountService.class);
-        var service = new SettingChangeCancellationCompletionService(payments, attempts, allocations, refunds, amounts);
+        var service = new SettingChangeCancellationCompletionService(payments, attempts, allocations, refunds, amounts,
+            mock(com.chapchap.subscription.global.kafka.customer.CustomerRefundEventPublisher.class));
         LocalDateTime now = LocalDateTime.of(2026, 9, 6, 12, 0);
         PaymentTransaction original = PaymentTransaction.createFirstSubscriptionPayment(10L, 1L, 2L,
             10_000L, now, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 28), "pay-key", now);
