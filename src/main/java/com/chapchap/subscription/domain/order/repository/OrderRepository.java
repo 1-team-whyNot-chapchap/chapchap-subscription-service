@@ -17,6 +17,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Optional<Order> findByPublicIdAndUserId(String publicId, Long userId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Order> findWithLockByPublicId(String publicId);
+
     /**
      * 같은 이용 기간에 최초 주문 묶음이 이미 생성됐는지 확인한다.
      *

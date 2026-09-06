@@ -16,6 +16,11 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         enable.idempotence: true
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
 
 server:
   port: ${APP_PORT:8082}
@@ -44,3 +49,7 @@ app:
       topic: ${KAFKA_TOPIC_SUBSCRIPTION_AUTH_STATUS:subscription.subscription-events.v1}
     customer-delivery-address:
       topic: ${KAFKA_TOPIC_CUSTOMER_DELIVERY_ADDRESS:subscription.delivery-address-events.v1}
+    delivery-refund:
+      topic: ${KAFKA_TOPIC_DELIVERY_REFUND:delivery.refund-events.v1}
+      dlt-topic: ${KAFKA_TOPIC_DELIVERY_REFUND_DLT:delivery.refund-events.v1.DLT}
+      group-id: ${KAFKA_CONSUMER_GROUP_DELIVERY_REFUND:subscription-service-delivery-refund-group}

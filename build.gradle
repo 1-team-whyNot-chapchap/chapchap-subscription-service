@@ -50,4 +50,8 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    def deliveryRefundKafkaIntegration = System.getProperty('chapchap.delivery-refund-kafka-integration.enabled')
+    if (deliveryRefundKafkaIntegration != null) {
+        systemProperty 'chapchap.delivery-refund-kafka-integration.enabled', deliveryRefundKafkaIntegration
+    }
 }

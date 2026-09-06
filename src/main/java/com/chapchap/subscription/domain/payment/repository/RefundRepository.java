@@ -1,6 +1,8 @@
 package com.chapchap.subscription.domain.payment.repository;
 
 import com.chapchap.subscription.domain.payment.entity.Refund;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -19,4 +21,9 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     Optional<Refund> findBySubscriptionPeriodId(Long subscriptionPeriodId);
 
     Optional<Refund> findBySubscriptionSettingId(Long subscriptionSettingId);
+
+    Optional<Refund> findByExternalDeliveryId(String externalDeliveryId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Refund> findWithLockById(Long id);
 }

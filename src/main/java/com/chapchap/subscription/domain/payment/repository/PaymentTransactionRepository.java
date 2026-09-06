@@ -55,4 +55,9 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     /** 결제 상태 전이를 직렬화하기 위해 거래를 쓰기 잠금으로 조회한다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<PaymentTransaction> findWithLockById(Long id);
+
+    List<PaymentTransaction> findAllByOriginalPaymentTransactionIdAndStatus(
+        Long originalPaymentTransactionId,
+        PaymentTransactionStatus status
+    );
 }
