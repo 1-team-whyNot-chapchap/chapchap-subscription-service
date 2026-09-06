@@ -23,4 +23,15 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
 
     /** 특정 구독에 지정한 상태의 결제 거래가 존재하는지 확인한다. */
     boolean existsBySubscriptionIdAndStatus(Long subscriptionId, PaymentTransactionStatus status);
+
+    Optional<PaymentTransaction> findTopBySubscriptionIdAndStatusOrderByOccurredAtDescIdDesc(
+        Long subscriptionId,
+        PaymentTransactionStatus status
+    );
+
+    boolean existsBySubscriptionIdAndSubscriptionPeriodIdAndStatus(
+        Long subscriptionId,
+        Long subscriptionPeriodId,
+        PaymentTransactionStatus status
+    );
 }

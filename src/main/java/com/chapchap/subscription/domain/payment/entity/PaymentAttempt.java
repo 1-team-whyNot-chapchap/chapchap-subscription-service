@@ -110,7 +110,7 @@ public class PaymentAttempt {
         String failureReason
     ) {
         this.paymentTransactionId = requirePositive(paymentTransactionId, "paymentTransactionId");
-        this.paymentMethodId = requirePositive(paymentMethodId, "paymentMethodId");
+        this.paymentMethodId = paymentMethodId == null ? null : requirePositive(paymentMethodId, "paymentMethodId");
         this.providerCode = requireNonNull(providerCode, "providerCode");
         this.attemptSequence = requirePositive(attemptSequence, "attemptSequence");
         this.idempotencyKey = requireText(idempotencyKey, "idempotencyKey");
@@ -161,6 +161,7 @@ public class PaymentAttempt {
         String externalTransactionRef,
         String externalResultCode
     ) {
+        requirePositive(paymentMethodId, "paymentMethodId");
         return new PaymentAttempt(
             paymentTransactionId,
             paymentMethodId,
@@ -212,6 +213,7 @@ public class PaymentAttempt {
         String externalResultCode,
         String failureReason
     ) {
+        requirePositive(paymentMethodId, "paymentMethodId");
         return new PaymentAttempt(
             paymentTransactionId,
             paymentMethodId,
@@ -226,6 +228,32 @@ public class PaymentAttempt {
             null,
             externalResultCode,
             failureReason
+        );
+    }
+
+    public static PaymentAttempt cancellationSuccess(
+        Long paymentTransactionId, PaymentProviderCode providerCode, Integer attemptSequence,
+        String idempotencyKey, Long requestedAmount, LocalDateTime requestedAt,
+        LocalDateTime respondedAt, String externalPaymentId, String externalTransactionRef,
+        String externalResultCode
+    ) {
+        return new PaymentAttempt(
+            paymentTransactionId, null, providerCode, attemptSequence, idempotencyKey,
+            requestedAmount, requestedAt, respondedAt, PaymentAttemptResult.SUCCESS,
+            externalPaymentId, externalTransactionRef, externalResultCode, null
+        );
+    }
+
+    public static PaymentAttempt cancellationFailure(
+        Long paymentTransactionId, PaymentProviderCode providerCode, Integer attemptSequence,
+        String idempotencyKey, Long requestedAmount, LocalDateTime requestedAt,
+        LocalDateTime respondedAt, String externalPaymentId, String externalResultCode,
+        String failureReason
+    ) {
+        return new PaymentAttempt(
+            paymentTransactionId, null, providerCode, attemptSequence, idempotencyKey,
+            requestedAmount, requestedAt, respondedAt, PaymentAttemptResult.FAILURE,
+            externalPaymentId, null, externalResultCode, failureReason
         );
     }
 
