@@ -6,7 +6,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,10 +45,11 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
         PaymentTransactionStatus status
     );
 
-    /** 정기결제 배치가 같은 날 처리할 상태의 거래를 생성 순서대로 조회한다. */
-    List<PaymentTransaction> findAllByStatusAndPeriodEndDateOrderByIdAsc(
+    /** 정기결제 배치가 당일 09시에 시작한 재시도 대기 거래를 생성 순서대로 조회한다. */
+    List<PaymentTransaction> findAllByStatusAndProcessingReferenceAtGreaterThanEqualAndProcessingReferenceAtLessThanOrderByIdAsc(
         PaymentTransactionStatus status,
-        LocalDate periodEndDate
+        LocalDateTime referenceStart,
+        LocalDateTime referenceEndExclusive
     );
 
     /** 결제 상태 전이를 직렬화하기 위해 거래를 쓰기 잠금으로 조회한다. */

@@ -68,8 +68,12 @@ public class RegularPaymentPreparationService {
     /** 13시 재시도 대기 거래를 조회한다. */
     @Transactional(readOnly = true)
     public List<Long> findRetryWaitingTransactionIds(LocalDate today) {
-        return transactionRepository.findAllByStatusAndPeriodEndDateOrderByIdAsc(
-                PaymentTransactionStatus.RETRY_WAITING, today
+        LocalDateTime referenceStart = today.atStartOfDay();
+        return transactionRepository
+            .findAllByStatusAndProcessingReferenceAtGreaterThanEqualAndProcessingReferenceAtLessThanOrderByIdAsc(
+                PaymentTransactionStatus.RETRY_WAITING,
+                referenceStart,
+                referenceStart.plusDays(1)
             )
             .stream().map(PaymentTransaction::getId).toList();
     }

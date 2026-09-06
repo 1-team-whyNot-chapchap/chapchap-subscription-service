@@ -90,16 +90,22 @@ class RegularPaymentPreparationServiceTest {
     }
 
     @Test
-    void 오후_재시도_대상은_오늘_종료된_기간의_대기거래로_제한한다() {
+    void 오후_재시도_대상은_오늘_오전에_처리를_시작한_대기거래로_제한한다() {
         PaymentTransaction transaction = regularTransaction("request-1");
-        when(transactionRepository.findAllByStatusAndPeriodEndDateOrderByIdAsc(
-            PaymentTransactionStatus.RETRY_WAITING, TODAY
+        when(transactionRepository
+            .findAllByStatusAndProcessingReferenceAtGreaterThanEqualAndProcessingReferenceAtLessThanOrderByIdAsc(
+                PaymentTransactionStatus.RETRY_WAITING,
+                TODAY.atStartOfDay(),
+                TODAY.plusDays(1).atStartOfDay()
         )).thenReturn(List.of(transaction));
 
         assertThat(service.findRetryWaitingTransactionIds(TODAY)).containsExactly(10L);
 
-        verify(transactionRepository).findAllByStatusAndPeriodEndDateOrderByIdAsc(
-            PaymentTransactionStatus.RETRY_WAITING, TODAY
+        verify(transactionRepository)
+            .findAllByStatusAndProcessingReferenceAtGreaterThanEqualAndProcessingReferenceAtLessThanOrderByIdAsc(
+                PaymentTransactionStatus.RETRY_WAITING,
+                TODAY.atStartOfDay(),
+                TODAY.plusDays(1).atStartOfDay()
         );
     }
 
