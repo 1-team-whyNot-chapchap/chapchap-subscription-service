@@ -37,15 +37,23 @@ public class SubscriptionTerminationService {
     public void terminateDueSubscriptions(LocalDate today) {
         LocalDate endedYesterday = today.minusDays(1);
         for (SubscriptionPeriod candidate : periodRepository.findAllByStatusAndPeriodEndDate(SubscriptionPeriodStatus.IN_PROGRESS, endedYesterday)) {
-            terminateIfDue(candidate.getId(), endedYesterday, timeProvider.now());
+            terminateIfDue(
+                new TerminationCandidate(candidate.getId(), candidate.getSubscriptionId()),
+                endedYesterday,
+                timeProvider.now()
+            );
         }
     }
 
-    private void terminateIfDue(Long currentPeriodId, LocalDate endedYesterday, LocalDateTime endedAt) {
-        SubscriptionPeriod current = periodRepository.findWithLockById(currentPeriodId).orElse(null);
-        if (current == null || current.getStatus() != SubscriptionPeriodStatus.IN_PROGRESS || !current.getPeriodEndDate().equals(endedYesterday)) return;
-        Subscription subscription = subscriptionRepository.findWithLockById(current.getSubscriptionId()).orElse(null);
-        if (subscription == null || !isTerminationDue(subscription, current)) return;
+    private void terminateIfDue(TerminationCandidate candidate, LocalDate endedYesterday, LocalDateTime endedAt) {
+        Subscription subscription = subscriptionRepository.findWithLockById(candidate.subscriptionId()).orElse(null);
+        if (subscription == null) return;
+        SubscriptionPeriod current = periodRepository.findWithLockById(candidate.periodId()).orElse(null);
+        if (current == null || !current.getSubscriptionId().equals(subscription.getId())
+            || current.getStatus() != SubscriptionPeriodStatus.IN_PROGRESS
+            || !current.getPeriodEndDate().equals(endedYesterday)) return;
+        if (!isTerminationDue(subscription, current)) return;
+        current.end();
         SubscriptionStatus previous = subscription.end();
         historyRepository.save(SubscriptionStatusHistory.create(subscription.getId(), previous, SubscriptionStatus.ENDED, ACTOR,
             previous == SubscriptionStatus.CANCELLATION_SCHEDULED ? "CANCELLATION_PERIOD_ENDED" : "REGULAR_PAYMENT_FINAL_FAILURE", endedAt));
@@ -65,5 +73,8 @@ public class SubscriptionTerminationService {
         return periodRepository.findTopBySubscriptionIdOrderByPeriodSequenceDesc(subscription.getId())
             .filter(next -> next.getPeriodSequence() == current.getPeriodSequence() + 1)
             .map(next -> next.getStatus() == SubscriptionPeriodStatus.PAYMENT_FAILED).orElse(false);
+    }
+
+    private record TerminationCandidate(Long periodId, Long subscriptionId) {
     }
 }

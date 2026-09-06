@@ -131,6 +131,14 @@ public class SubscriptionPeriod {
         status = SubscriptionPeriodStatus.IN_PROGRESS;
     }
 
+    // IN_PROGRESS(진행 중) -> ENDED(종료) 상태 변경
+    public void end() {
+        if (status != SubscriptionPeriodStatus.IN_PROGRESS) {
+            throw new IllegalStateException("이용 중인 기간만 종료할 수 있습니다.");
+        }
+        status = SubscriptionPeriodStatus.ENDED;
+    }
+
     public void cancelBeforeStart(LocalDateTime canceledAt, String reason) {
         if (status != SubscriptionPeriodStatus.SCHEDULED || canceledAt == null || reason == null || reason.isBlank()) {
             throw new IllegalStateException("시작 예정 기간만 시작 취소할 수 있습니다.");
