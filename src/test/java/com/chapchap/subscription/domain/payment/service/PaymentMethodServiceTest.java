@@ -9,6 +9,7 @@ import com.chapchap.subscription.domain.payment.security.BillingKeyProtector;
 import com.chapchap.subscription.global.exception.ErrorCode;
 import com.chapchap.subscription.global.exception.payment.CurrentPaymentMethodDeleteNotAllowedException;
 import com.chapchap.subscription.global.exception.payment.PaymentMethodNotFoundException;
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -54,6 +55,9 @@ class PaymentMethodServiceTest {
     void 다른_사용_가능_수단을_현재_결제수단으로_선택한다() {
         PaymentMethod currentPaymentMethod = createCurrentPaymentMethod();
         PaymentMethod selectedPaymentMethod = createAdditionalPaymentMethod();
+
+        assertThat(PublicIdFormat.isUuidV4(currentPaymentMethod.getPublicId())).isTrue();
+        assertThat(PublicIdFormat.isUuidV4(selectedPaymentMethod.getPublicId())).isTrue();
 
         when(paymentMethodRepository.findByPublicIdAndUserIdAndStatusAndDeletedAtIsNull(
                 selectedPaymentMethod.getPublicId()
@@ -106,7 +110,7 @@ class PaymentMethodServiceTest {
 
     @Test
     void 선택_가능한_결제수단이_없으면_PAYMENT_005를_반환한다() {
-        String paymentMethodId = "PAY-550e8400-e29b-41d4-a716-446655440000";
+        String paymentMethodId = "550e8400-e29b-41d4-a716-446655440000";
 
         when(paymentMethodRepository.findByPublicIdAndUserIdAndStatusAndDeletedAtIsNull(
                 paymentMethodId
@@ -209,7 +213,7 @@ class PaymentMethodServiceTest {
 
     @Test
     void 삭제_가능한_자동결제수단이_없으면_PAYMENT_005를_반환한다() {
-        String paymentMethodId = "PAY-550e8400-e29b-41d4-a716-446655440000";
+        String paymentMethodId = "550e8400-e29b-41d4-a716-446655440000";
 
         when(paymentMethodRepository.findByPublicIdAndUserIdAndStatusAndDeletedAtIsNull(
                 paymentMethodId

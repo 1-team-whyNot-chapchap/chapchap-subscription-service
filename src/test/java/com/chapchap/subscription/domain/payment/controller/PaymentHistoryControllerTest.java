@@ -25,16 +25,18 @@ class PaymentHistoryControllerTest {
         Authentication authentication = authentication();
         PaymentListResponse list = new PaymentListResponse(List.of());
         when(service.getPayments(USER_ID)).thenReturn(list);
-        when(service.getPayment(USER_ID, "PAY-public")).thenReturn(null);
+        when(service.getPayment(USER_ID, "550e8400-e29b-41d4-a716-446655440000")).thenReturn(null);
         PaymentHistoryController controller = new PaymentHistoryController(service);
 
         GlobalResponse<PaymentListResponse> listResponse = controller.getPayments(authentication);
-        GlobalResponse<PaymentDetailResponse> detailResponse = controller.getPayment(authentication, "PAY-public");
+        GlobalResponse<PaymentDetailResponse> detailResponse = controller.getPayment(
+            authentication, "550e8400-e29b-41d4-a716-446655440000"
+        );
 
         assertThat(listResponse.data()).isSameAs(list);
         assertThat(detailResponse.code()).isEqualTo("00");
         verify(service).getPayments(USER_ID);
-        verify(service).getPayment(USER_ID, "PAY-public");
+        verify(service).getPayment(USER_ID, "550e8400-e29b-41d4-a716-446655440000");
     }
 
     @Test
@@ -43,16 +45,18 @@ class PaymentHistoryControllerTest {
         Authentication authentication = authentication();
         RefundListResponse list = new RefundListResponse(List.of());
         when(service.getRefunds(USER_ID)).thenReturn(list);
-        when(service.getRefund(USER_ID, "REF-public")).thenReturn(null);
+        when(service.getRefund(USER_ID, "650e8400-e29b-41d4-a716-446655440000")).thenReturn(null);
         PaymentHistoryController controller = new PaymentHistoryController(service);
 
         GlobalResponse<RefundListResponse> listResponse = controller.getRefunds(authentication);
-        GlobalResponse<RefundDetailResponse> detailResponse = controller.getRefund(authentication, "REF-public");
+        GlobalResponse<RefundDetailResponse> detailResponse = controller.getRefund(
+            authentication, "650e8400-e29b-41d4-a716-446655440000"
+        );
 
         assertThat(listResponse.data()).isSameAs(list);
         assertThat(detailResponse.code()).isEqualTo("00");
         verify(service).getRefunds(USER_ID);
-        verify(service).getRefund(USER_ID, "REF-public");
+        verify(service).getRefund(USER_ID, "650e8400-e29b-41d4-a716-446655440000");
     }
 
     private Authentication authentication() {

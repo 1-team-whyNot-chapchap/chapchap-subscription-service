@@ -32,14 +32,12 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Subscription {
 
-    private static final String PUBLIC_ID_PREFIX = "SUB-";
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
     private Long id;
 
-    @Column(name = "public_id", nullable = false, length = 40, columnDefinition = "CHAR(40)")
+    @Column(name = "public_id", nullable = false, length = 36, columnDefinition = "CHAR(36)")
     private String publicId;
 
     @Column(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
@@ -77,7 +75,7 @@ public class Subscription {
         }
 
         Subscription subscription = new Subscription();
-        subscription.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        subscription.publicId = UUID.randomUUID().toString();
         subscription.userId = userId;
         subscription.authSubscriptionVersion = 0;
         subscription.status = SubscriptionStatus.AWAITING_CONFIRMATION;

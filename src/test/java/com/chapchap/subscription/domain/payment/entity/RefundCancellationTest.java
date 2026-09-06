@@ -1,5 +1,6 @@
 package com.chapchap.subscription.domain.payment.entity;
 
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -11,6 +12,7 @@ class RefundCancellationTest {
         Refund refund = Refund.createPeriodCancellation(
             1L, 2L, RefundType.CANCELLATION_BEFORE_START, 10_000L
         );
+        assertThat(PublicIdFormat.isUuidV4(refund.getPublicId())).isTrue();
         refund.addSuccessfulAmount(4_000L, LocalDateTime.of(2026, 9, 6, 12, 0));
         assertThat(refund.getStatus()).isEqualTo(RefundStatus.PENDING);
 

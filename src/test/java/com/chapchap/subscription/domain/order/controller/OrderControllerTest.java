@@ -33,13 +33,13 @@ class OrderControllerTest {
     void 인증_사용자와_공개_식별자로_주문_상세를_조회한다() {
         OrderQueryService service = mock(OrderQueryService.class);
         Authentication authentication = authentication();
-        when(service.getOrder(10L, "ORD-public")).thenReturn(null);
+        when(service.getOrder(10L, "550e8400-e29b-41d4-a716-446655440000")).thenReturn(null);
 
         GlobalResponse<OrderDetailResponse> response =
-            new OrderController(service).getOrder(authentication, "ORD-public");
+            new OrderController(service).getOrder(authentication, "550e8400-e29b-41d4-a716-446655440000");
 
         assertThat(response.code()).isEqualTo("00");
-        verify(service).getOrder(10L, "ORD-public");
+        verify(service).getOrder(10L, "550e8400-e29b-41d4-a716-446655440000");
     }
 
     private Authentication authentication() {

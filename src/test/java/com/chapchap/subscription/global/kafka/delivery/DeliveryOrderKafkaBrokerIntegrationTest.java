@@ -76,7 +76,7 @@ class DeliveryOrderKafkaBrokerIntegrationTest {
 
         MenuRepository menus = mock(MenuRepository.class);
         Menu menu = mock(Menu.class);
-        when(menu.getPublicId()).thenReturn("MNU-00000000-0000-4000-8000-000000000001");
+        when(menu.getPublicId()).thenReturn("00000000-0000-4000-8000-000000000001");
         when(menus.findById(7L)).thenReturn(Optional.of(menu));
         UserTermsAgreementRepository agreements = mock(UserTermsAgreementRepository.class);
         when(agreements.findById(5L)).thenReturn(Optional.of(
@@ -284,7 +284,7 @@ class DeliveryOrderKafkaBrokerIntegrationTest {
                                                     KstReferenceTimeProvider timeProvider) {
         MenuRepository menus = mock(MenuRepository.class);
         Menu menu = mock(Menu.class);
-        when(menu.getPublicId()).thenReturn("MNU-00000000-0000-4000-8000-000000000001");
+        when(menu.getPublicId()).thenReturn("00000000-0000-4000-8000-000000000001");
         when(menus.findById(7L)).thenReturn(Optional.of(menu));
         UserTermsAgreementRepository agreements = mock(UserTermsAgreementRepository.class);
         when(agreements.findById(5L)).thenReturn(Optional.of(

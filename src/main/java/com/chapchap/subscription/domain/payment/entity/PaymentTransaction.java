@@ -52,14 +52,12 @@ import java.util.UUID;
 @Check(name = "ck_payment_transactions_version", constraints = "payment_state_version >= 0")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PaymentTransaction {
-    private static final String PUBLIC_ID_PREFIX = "PAY-";
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", columnDefinition = "BIGINT UNSIGNED")
     private Long id;
 
-    @Column(name = "public_id", nullable = false, length = 40, columnDefinition = "CHAR(40)")
+    @Column(name = "public_id", nullable = false, length = 36, columnDefinition = "CHAR(36)")
     private String publicId;
 
     @Column(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
@@ -143,7 +141,7 @@ public class PaymentTransaction {
         String externalRequestIdempotencyKey,
         LocalDateTime occurredAt
     ) {
-        this.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        this.publicId = UUID.randomUUID().toString();
         this.userId = requirePositive(userId, "userId");
         this.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
         this.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
@@ -251,7 +249,7 @@ public class PaymentTransaction {
             throw new IllegalArgumentException("Unsupported period cancellation transaction type");
         }
         PaymentTransaction transaction = new PaymentTransaction();
-        transaction.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        transaction.publicId = UUID.randomUUID().toString();
         transaction.userId = requirePositive(userId, "userId");
         transaction.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
         transaction.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
@@ -277,7 +275,7 @@ public class PaymentTransaction {
         String externalRequestIdempotencyKey, LocalDateTime occurredAt
     ) {
         PaymentTransaction transaction = new PaymentTransaction();
-        transaction.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        transaction.publicId = UUID.randomUUID().toString();
         transaction.userId = requirePositive(userId, "userId");
         transaction.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
         transaction.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
@@ -304,7 +302,7 @@ public class PaymentTransaction {
         LocalDate settingEffectiveDate, String externalRequestIdempotencyKey, LocalDateTime occurredAt
     ) {
         PaymentTransaction transaction = new PaymentTransaction();
-        transaction.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        transaction.publicId = UUID.randomUUID().toString();
         transaction.userId = requirePositive(userId, "userId");
         transaction.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
         transaction.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");
@@ -334,7 +332,7 @@ public class PaymentTransaction {
         String externalRequestIdempotencyKey, LocalDateTime occurredAt
     ) {
         PaymentTransaction transaction = new PaymentTransaction();
-        transaction.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        transaction.publicId = UUID.randomUUID().toString();
         transaction.userId = requirePositive(userId, "userId");
         transaction.subscriptionId = requirePositive(subscriptionId, "subscriptionId");
         transaction.subscriptionPeriodId = requirePositive(subscriptionPeriodId, "subscriptionPeriodId");

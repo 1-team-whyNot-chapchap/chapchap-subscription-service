@@ -33,7 +33,7 @@ public class Menu {
     @Column(name = "id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
     private Long id;
 
-    @Column(name = "public_id", nullable = false, length = 40, columnDefinition = "CHAR(40)")
+    @Column(name = "public_id", nullable = false, length = 36, columnDefinition = "CHAR(36)")
     private String publicId;
 
     @Column(name = "plan_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")

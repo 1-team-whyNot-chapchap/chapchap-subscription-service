@@ -23,7 +23,7 @@ class DeliveryRefundKafkaListenerTest {
             {"eventId":"0198b020-6228-7733-8a90-33b36dc39cdf","eventType":"DELIVERY_REFUND_CONFIRMED",
              "version":1,"occurredAt":"2026-09-06T18:00:00+09:00","userId":10,
              "data":{"deliveryId":"11111111-1111-4111-8111-111111111111",
-             "orderId":"ORD-22222222-2222-4222-8222-222222222222",
+             "orderId":"22222222-2222-4222-8222-222222222222",
              "confirmedAt":"2026-09-06T17:59:00+09:00","reasonCode":"DELIVERY_FAILED"}}
             """;
 

@@ -319,19 +319,19 @@ class CurrentSubscriptionQueryServiceTest {
             CurrentSubscriptionResponse response,
             SubscriptionStatus expectedStatus
     ) {
-        assertThat(response.subscriptionId()).isEqualTo("SUB-public");
+        assertThat(response.subscriptionId()).isEqualTo("11111111-1111-4111-8111-111111111111");
         assertThat(response.subscriptionStatus()).isEqualTo(expectedStatus);
         assertThat(response.periodStartDate()).isEqualTo(PERIOD_START);
         assertThat(response.periodEndDate()).isEqualTo(PERIOD_END);
-        assertThat(response.plan().planId()).isEqualTo("PLN-public");
+        assertThat(response.plan().planId()).isEqualTo("22222222-2222-4222-8222-222222222222");
         assertThat(response.deliveryConditions()).hasSize(1);
         assertThat(response.deliveryConditions().getFirst().address().addressId())
-                .isEqualTo("ADR-public-101");
+                .isEqualTo("00000000-0000-4000-8000-000000000101");
     }
 
     private Subscription subscription(SubscriptionStatus status) {
         Subscription subscription = mock(Subscription.class);
-        when(subscription.getPublicId()).thenReturn("SUB-public");
+        when(subscription.getPublicId()).thenReturn("11111111-1111-4111-8111-111111111111");
         when(subscription.getStatus()).thenReturn(status);
         return subscription;
     }
@@ -352,7 +352,7 @@ class CurrentSubscriptionQueryServiceTest {
 
     private Plan plan() {
         Plan plan = mock(Plan.class);
-        when(plan.getPublicId()).thenReturn("PLN-public");
+        when(plan.getPublicId()).thenReturn("22222222-2222-4222-8222-222222222222");
         when(plan.getName()).thenReturn("가정식");
         when(plan.getDescription()).thenReturn("플랜 소개");
         when(plan.getUnitPrice()).thenReturn(8_900L);
@@ -372,7 +372,7 @@ class CurrentSubscriptionQueryServiceTest {
         Address address = mock(Address.class);
         when(address.getId()).thenReturn(id);
         when(address.getUserId()).thenReturn(userId);
-        when(address.getPublicId()).thenReturn("ADR-public-" + id);
+        when(address.getPublicId()).thenReturn(String.format("00000000-0000-4000-8000-%012d", id));
         when(address.getName()).thenReturn("우리 집");
         when(address.getRecipientName()).thenReturn("홍길동");
         when(address.getRecipientPhone()).thenReturn("010-0000-0000");

@@ -30,14 +30,14 @@ class PlanControllerTest {
     void 공개_식별자로_플랜_상세를_조회한다() {
         PlanQueryService service = mock(PlanQueryService.class);
         PlanDetailResponse expected = new PlanDetailResponse(
-            "PLN-public", "가정식", "설명", 8_900L, List.of()
+            "550e8400-e29b-41d4-a716-446655440000", "가정식", "설명", 8_900L, List.of()
         );
-        when(service.getPlan("PLN-public")).thenReturn(expected);
+        when(service.getPlan("550e8400-e29b-41d4-a716-446655440000")).thenReturn(expected);
 
         GlobalResponse<PlanDetailResponse> response =
-            new PlanController(service).getPlan("PLN-public");
+            new PlanController(service).getPlan("550e8400-e29b-41d4-a716-446655440000");
 
         assertThat(response.data()).isSameAs(expected);
-        verify(service).getPlan("PLN-public");
+        verify(service).getPlan("550e8400-e29b-41d4-a716-446655440000");
     }
 }

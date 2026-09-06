@@ -46,8 +46,8 @@ import static org.mockito.Mockito.when;
 class PaymentHistoryQueryServiceTest {
     private static final Long USER_ID = 10L;
     private static final Long SUBSCRIPTION_ID = 30L;
-    private static final String PAYMENT_ID = "PAY-550e8400-e29b-41d4-a716-446655440000";
-    private static final String REFUND_ID = "REF-550e8400-e29b-41d4-a716-446655440000";
+    private static final String PAYMENT_ID = "550e8400-e29b-41d4-a716-446655440000";
+    private static final String REFUND_ID = "650e8400-e29b-41d4-a716-446655440000";
     private static final LocalDateTime OCCURRED_AT = LocalDateTime.of(2026, 9, 5, 14, 0);
 
     @Mock private PaymentTransactionRepository paymentTransactionRepository;
@@ -79,8 +79,8 @@ class PaymentHistoryQueryServiceTest {
 
     @Test
     void 결제_목록은_Repository_정렬_순서와_저장값을_유지한다() {
-        PaymentTransaction recent = payment(20L, "PAY-recent", OCCURRED_AT.plusHours(1));
-        PaymentTransaction older = payment(21L, "PAY-older", OCCURRED_AT);
+        PaymentTransaction recent = payment(20L, "11111111-1111-4111-8111-111111111111", OCCURRED_AT.plusHours(1));
+        PaymentTransaction older = payment(21L, "22222222-2222-4222-8222-222222222222", OCCURRED_AT);
         when(paymentTransactionRepository.findAllByUserIdOrderByOccurredAtDescIdDesc(USER_ID))
             .thenReturn(List.of(recent, older));
 
@@ -88,7 +88,10 @@ class PaymentHistoryQueryServiceTest {
 
         assertThat(response.payments())
             .extracting(PaymentListResponse.PaymentItemResponse::paymentId)
-            .containsExactly("PAY-recent", "PAY-older");
+            .containsExactly(
+                "11111111-1111-4111-8111-111111111111",
+                "22222222-2222-4222-8222-222222222222"
+            );
         assertThat(response.payments().getFirst().amount()).isEqualTo(89_000L);
     }
 
@@ -223,8 +226,10 @@ class PaymentHistoryQueryServiceTest {
         RefundDetailResponse response = service.getRefund(USER_ID, REFUND_ID);
 
         assertThat(response.cancellations()).hasSize(1);
-        assertThat(response.cancellations().getFirst().paymentId()).isEqualTo("PAY-cancellation");
-        assertThat(response.cancellations().getFirst().originalPaymentId()).isEqualTo("PAY-original");
+        assertThat(response.cancellations().getFirst().paymentId())
+            .isEqualTo("31111111-1111-4111-8111-111111111111");
+        assertThat(response.cancellations().getFirst().originalPaymentId())
+            .isEqualTo("41111111-1111-4111-8111-111111111111");
         assertThat(response.cancellations().getFirst().amount()).isEqualTo(39_000L);
         assertThat(recordFields(RefundDetailResponse.class)).doesNotContain("failureReason", "businessDeduplicationKey");
         assertThat(recordFields(RefundDetailResponse.CancellationResponse.class))
@@ -348,7 +353,9 @@ class PaymentHistoryQueryServiceTest {
     }
 
     private PaymentTransaction cancellation(Long id, Long refundId, Long originalId) {
-        PaymentTransaction cancellation = payment(id, "PAY-cancellation", OCCURRED_AT.plusSeconds(2));
+        PaymentTransaction cancellation = payment(
+            id, "31111111-1111-4111-8111-111111111111", OCCURRED_AT.plusSeconds(2)
+        );
         lenient().when(cancellation.getTransactionType())
             .thenReturn(PaymentTransactionType.CANCELLATION_BEFORE_START);
         lenient().when(cancellation.getRefundId()).thenReturn(refundId);
@@ -358,7 +365,7 @@ class PaymentHistoryQueryServiceTest {
     }
 
     private PaymentTransaction originalPayment(Long id) {
-        PaymentTransaction original = payment(id, "PAY-original", OCCURRED_AT.minusDays(1));
+        PaymentTransaction original = payment(id, "41111111-1111-4111-8111-111111111111", OCCURRED_AT.minusDays(1));
         lenient().when(original.getStatus()).thenReturn(PaymentTransactionStatus.SUCCESS);
         return original;
     }

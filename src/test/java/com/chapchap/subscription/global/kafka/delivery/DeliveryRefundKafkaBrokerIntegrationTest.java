@@ -53,7 +53,7 @@ class DeliveryRefundKafkaBrokerIntegrationTest {
     @Test
     void 정상_Event를_실제_Broker에서_소비해_업무서비스에_전달한다() throws Exception {
         String deliveryId = UUID.randomUUID().toString();
-        String orderId = "ORD-" + UUID.randomUUID();
+        String orderId = UUID.randomUUID().toString();
         when(service.process(any())).thenReturn(RefundStatus.COMPLETED);
 
         publish(properties.getTopic(), deliveryId, event(deliveryId, orderId, "DELIVERY_FAILED"));
@@ -73,7 +73,7 @@ class DeliveryRefundKafkaBrokerIntegrationTest {
             consumer.seek(partition, initialEnd);
 
             publish(properties.getTopic(), deliveryId,
-                event(deliveryId, "ORD-" + UUID.randomUUID(), "CUSTOMER_CHANGED_MIND"));
+                event(deliveryId, UUID.randomUUID().toString(), "CUSTOMER_CHANGED_MIND"));
 
             ConsumerRecord<String, String> record = awaitRecord(consumer, deliveryId, Duration.ofSeconds(12));
             assertThat(record.topic()).isEqualTo(properties.getDltTopic());

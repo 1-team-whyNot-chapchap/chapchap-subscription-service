@@ -47,10 +47,10 @@ class PaymentCancellationEntityTest {
         LocalDateTime now = LocalDateTime.of(2026, 9, 6, 12, 0);
         PaymentAttempt attempt = PaymentAttempt.cancellationSuccess(
             1L, PaymentProviderCode.PORTONE, 1, "cancel-key-123456", 10_000L,
-            now, now.plusSeconds(1), "PAY-original", "cancel-1", "SUCCEEDED"
+            now, now.plusSeconds(1), "550e8400-e29b-41d4-a716-446655440000", "cancel-1", "SUCCEEDED"
         );
 
         assertThat(attempt.getPaymentMethodId()).isNull();
-        assertThat(attempt.getExternalPaymentId()).isEqualTo("PAY-original");
+        assertThat(attempt.getExternalPaymentId()).isEqualTo("550e8400-e29b-41d4-a716-446655440000");
     }
 }

@@ -55,8 +55,6 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Address {
 
-    private static final String PUBLIC_ID_PREFIX = "ADR-";
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(
@@ -69,8 +67,8 @@ public class Address {
     @Column(
             name = "public_id",
             nullable = false,
-            length = 40,
-            columnDefinition = "CHAR(40)"
+            length = 36,
+            columnDefinition = "CHAR(36)"
     )
     private String publicId;
 
@@ -178,7 +176,7 @@ public class Address {
     ) {
         Address address = new Address();
 
-        address.publicId = PUBLIC_ID_PREFIX + UUID.randomUUID();
+        address.publicId = UUID.randomUUID().toString();
         address.userId = userId;
         address.deliveryAddressVersion = 0L;
         address.name = name;

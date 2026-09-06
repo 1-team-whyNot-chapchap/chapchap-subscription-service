@@ -1,6 +1,7 @@
 package com.chapchap.subscription.global.kafka.delivery;
 
 import com.chapchap.subscription.domain.payment.service.DeliveryRefundContractException;
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneOffset;
@@ -30,9 +31,7 @@ public class DeliveryRefundEventValidator {
     }
 
     private void requireOrderId(String orderId) {
-        if (orderId == null || !orderId.startsWith("ORD-")) fail("orderId must use ORD-{UUID v4}");
-        UUID uuid = parseCanonicalUuid(orderId.substring(4), "orderId");
-        if (uuid.version() != 4) fail("orderId must use UUID v4");
+        if (!PublicIdFormat.isUuidV4(orderId)) fail("orderId must use a lowercase canonical UUID v4");
     }
 
     private void requireCanonicalUuid(String value, String field) {

@@ -2,6 +2,7 @@ package com.chapchap.subscription.domain.subscription.request;
 
 import com.chapchap.subscription.domain.subscription.entity.DeliveryTimeSlot;
 import com.chapchap.subscription.domain.subscription.entity.DeliveryWeekday;
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -16,7 +17,7 @@ import java.util.List;
 /** 첫 구독 신청 시 고객이 선택한 플랜과 요일별 배송 조건을 전달한다. */
 public record FirstSubscriptionRequest(
     @NotBlank
-    @Pattern(regexp = "^PLN-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    @Pattern(regexp = PublicIdFormat.UUID_V4_REGEX)
     String planId,
     @NotEmpty @Size(max = 6) List<@Valid DeliveryCondition> deliveryConditions
 ) {
@@ -32,7 +33,7 @@ public record FirstSubscriptionRequest(
         @NotNull DeliveryWeekday weekday,
         @NotNull @Min(1) @Max(6) Integer mealQuantity,
         @NotBlank
-        @Pattern(regexp = "^ADR-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+        @Pattern(regexp = PublicIdFormat.UUID_V4_REGEX)
         String addressId,
         @NotNull DeliveryTimeSlot deliveryTimeSlot
     ) {

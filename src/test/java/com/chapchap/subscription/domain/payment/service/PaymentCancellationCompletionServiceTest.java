@@ -48,7 +48,7 @@ class PaymentCancellationCompletionServiceTest {
     void 성공응답을_원결제와_배분과_환불에_원자적으로_반영한다() {
         Fixture fixture = fixture();
         PaymentCancellationExecutionResult result = result(
-            PaymentCancellationResult.succeeded("PAY-original", "cancel-1")
+            PaymentCancellationResult.succeeded("550e8400-e29b-41d4-a716-446655440000", "cancel-1")
         );
 
         RefundStatus status = service.complete(result);
@@ -65,7 +65,7 @@ class PaymentCancellationCompletionServiceTest {
     void 첫_명시실패는_금액집계를_바꾸지_않고_환불실패로_남긴다() {
         Fixture fixture = fixture();
         PaymentCancellationExecutionResult result = result(
-            PaymentCancellationResult.declined("PAY-original", "DECLINED")
+            PaymentCancellationResult.declined("550e8400-e29b-41d4-a716-446655440000", "DECLINED")
         );
 
         RefundStatus status = service.complete(result);

@@ -35,7 +35,7 @@ class DeliveryRefundEventValidatorTest {
         var invalidOrder = new DeliveryRefundConfirmedEvent(
             invalidReason.eventId(), invalidReason.eventType(), 1, invalidReason.occurredAt(), 10L,
             new DeliveryRefundConfirmedEvent.Data(
-                invalidReason.data().deliveryId(), "ORD-11111111-1111-1111-8111-111111111111",
+                invalidReason.data().deliveryId(), "11111111-1111-1111-8111-111111111111",
                 invalidReason.data().confirmedAt(), "DELIVERY_FAILED"));
         assertThatThrownBy(() -> validator.validate(invalidOrder.data().deliveryId(), invalidOrder))
             .isInstanceOf(DeliveryRefundContractException.class);
@@ -50,7 +50,7 @@ class DeliveryRefundEventValidatorTest {
             10L,
             new DeliveryRefundConfirmedEvent.Data(
                 deliveryId,
-                "ORD-22222222-2222-4222-8222-222222222222",
+                "22222222-2222-4222-8222-222222222222",
                 OffsetDateTime.parse("2026-09-06T17:59:00+09:00"),
                 reasonCode));
     }

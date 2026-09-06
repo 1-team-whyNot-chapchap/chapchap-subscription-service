@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PlanQueryServiceTest {
-    private static final String PLAN_PUBLIC_ID = "PLN-550e8400-e29b-41d4-a716-446655440000";
+    private static final String PLAN_PUBLIC_ID = "550e8400-e29b-41d4-a716-446655440000";
 
     @Mock private PlanRepository planRepository;
     @Mock private MenuRepository menuRepository;
@@ -40,8 +40,8 @@ class PlanQueryServiceTest {
 
     @Test
     void 플랜_목록을_Repository의_안정적인_정렬_순서대로_반환한다() {
-        Plan first = plan("PLN-first", "간편식", 7_900L);
-        Plan second = plan("PLN-second", "가정식", 8_900L);
+        Plan first = plan("11111111-1111-4111-8111-111111111111", "간편식", 7_900L);
+        Plan second = plan("22222222-2222-4222-8222-222222222222", "가정식", 8_900L);
         when(planRepository.findAllByOrderByUnitPriceAscPublicIdAsc())
             .thenReturn(List.of(first, second));
 
@@ -49,7 +49,10 @@ class PlanQueryServiceTest {
 
         assertThat(response.plans())
             .extracting(PlanListResponse.PlanItemResponse::planId)
-            .containsExactly("PLN-first", "PLN-second");
+            .containsExactly(
+                "11111111-1111-4111-8111-111111111111",
+                "22222222-2222-4222-8222-222222222222"
+            );
     }
 
     @Test

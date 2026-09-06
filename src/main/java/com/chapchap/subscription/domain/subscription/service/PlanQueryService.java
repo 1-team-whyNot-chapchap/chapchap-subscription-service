@@ -7,12 +7,12 @@ import com.chapchap.subscription.domain.subscription.repository.PlanRepository;
 import com.chapchap.subscription.domain.subscription.response.PlanDetailResponse;
 import com.chapchap.subscription.domain.subscription.response.PlanListResponse;
 import com.chapchap.subscription.global.exception.subscription.PlanNotFoundException;
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.regex.Pattern;
 
 /** 로그인 전에도 사용할 수 있는 플랜·고정 메뉴 기준정보를 조회한다. */
 @Service
@@ -20,10 +20,6 @@ import java.util.regex.Pattern;
 @Transactional(readOnly = true)
 public class PlanQueryService {
     private static final int REQUIRED_MENU_COUNT = 31;
-    private static final Pattern PLAN_PUBLIC_ID = Pattern.compile(
-        "^PLN-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-    );
-
     private final PlanRepository planRepository;
     private final MenuRepository menuRepository;
 
@@ -84,7 +80,7 @@ public class PlanQueryService {
     }
 
     private void validatePlanId(String planId) {
-        if (planId == null || !PLAN_PUBLIC_ID.matcher(planId).matches()) {
+        if (!PublicIdFormat.isUuidV4(planId)) {
             throw new IllegalArgumentException("유효하지 않은 플랜 공개 식별자입니다.");
         }
     }

@@ -10,21 +10,16 @@ import com.chapchap.subscription.domain.payment.repository.RefundRepository;
 import com.chapchap.subscription.domain.subscription.entity.Menu;
 import com.chapchap.subscription.domain.subscription.repository.MenuRepository;
 import com.chapchap.subscription.global.exception.order.OrderNotFoundException;
+import com.chapchap.subscription.global.validation.PublicIdFormat;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.regex.Pattern;
 
 /** 인증 고객의 주문 목록과 주문 당시 상세 정보를 읽기 전용으로 조회한다. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class OrderQueryService {
-    private static final Pattern ORDER_PUBLIC_ID = Pattern.compile(
-        "^ORD-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-    );
-
     private final OrderRepository orderRepository;
     private final MenuRepository menuRepository;
     private final RefundRepository refundRepository;
@@ -117,7 +112,7 @@ public class OrderQueryService {
     }
 
     private void validateOrderId(String orderId) {
-        if (orderId == null || !ORDER_PUBLIC_ID.matcher(orderId).matches()) {
+        if (!PublicIdFormat.isUuidV4(orderId)) {
             throw new IllegalArgumentException("유효하지 않은 주문 공개 식별자입니다.");
         }
     }

@@ -29,14 +29,12 @@ import java.util.UUID;
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PaymentMethod {
-    private static final String PUBLIC_ID_PREFIX = "PAY-";
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", columnDefinition = "BIGINT UNSIGNED")
     private Long id;
 
-    @Column(name = "public_id", nullable = false, unique = true, columnDefinition = "CHAR(40)")
+    @Column(name = "public_id", nullable = false, unique = true, length = 36, columnDefinition = "CHAR(36)")
     private String publicId;
 
     @Column(name = "user_id", nullable = false, columnDefinition = "BIGINT UNSIGNED")
@@ -175,6 +173,6 @@ public class PaymentMethod {
     }
 
     private static String generatePublicId() {
-        return PUBLIC_ID_PREFIX + UUID.randomUUID();
+        return UUID.randomUUID().toString();
     }
 }

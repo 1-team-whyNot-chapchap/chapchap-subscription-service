@@ -26,11 +26,11 @@ class SettingChangePreparationServiceTest {
         Plan plan = mock(Plan.class); when(plan.getId()).thenReturn(3L);
         Address address = mock(Address.class); when(address.getId()).thenReturn(4L);
         Order replaceableOrder = mock(Order.class); when(replaceableOrder.getId()).thenReturn(9L);
-        when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription)); when(settings.findTopBySubscriptionIdOrderBySettingSequenceDesc(1L)).thenReturn(Optional.of(setting)); when(plans.findByPublicId("PLN-1")).thenReturn(Optional.of(plan)); when(time.now()).thenReturn(LocalDateTime.of(2026,9,7,10,0));
-        when(addresses.requireActiveAddress(10L, "ADR-1")).thenReturn(address);
+        when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription)); when(settings.findTopBySubscriptionIdOrderBySettingSequenceDesc(1L)).thenReturn(Optional.of(setting)); when(plans.findByPublicId("11111111-1111-4111-8111-111111111111")).thenReturn(Optional.of(plan)); when(time.now()).thenReturn(LocalDateTime.of(2026,9,7,10,0));
+        when(addresses.requireActiveAddress(10L, "21111111-1111-4111-8111-111111111111")).thenReturn(address);
         when(orders.findAllBySubscriptionIdAndStatusAndKafkaDeliveryStatusAndDeliveryDateGreaterThanEqual(1L, OrderStatus.ACTIVE, OrderKafkaDeliveryStatus.NOT_SENT, LocalDate.of(2026,9,8))).thenReturn(List.of(replaceableOrder));
-        SettingChangePreparationResult result = service.prepare(10L, new SettingChangePreparationRequest("PLN-1", List.of(new SettingChangePreparationRequest.DeliveryCondition(DeliveryWeekday.MONDAY, 2, "ADR-1", DeliveryTimeSlot.TIME_1100_1300))));
-        assertThat(result.subscriptionId()).isEqualTo(1L); assertThat(result.currentSettingId()).isEqualTo(2L); assertThat(result.requestedPlanId()).isEqualTo(3L); assertThat(result.effectiveStartDate()).isEqualTo(LocalDate.of(2026,9,8)); assertThat(result.draft().settingSequence()).isEqualTo(2); assertThat(result.draft().deliveryConditions()).extracting(SettingChangeDraft.DeliveryCondition::addressId).containsExactly(4L); assertThat(result.replaceableOrderIds()).containsExactly(9L); verify(addresses).requireActiveAddress(10L, "ADR-1");
+        SettingChangePreparationResult result = service.prepare(10L, new SettingChangePreparationRequest("11111111-1111-4111-8111-111111111111", List.of(new SettingChangePreparationRequest.DeliveryCondition(DeliveryWeekday.MONDAY, 2, "21111111-1111-4111-8111-111111111111", DeliveryTimeSlot.TIME_1100_1300))));
+        assertThat(result.subscriptionId()).isEqualTo(1L); assertThat(result.currentSettingId()).isEqualTo(2L); assertThat(result.requestedPlanId()).isEqualTo(3L); assertThat(result.effectiveStartDate()).isEqualTo(LocalDate.of(2026,9,8)); assertThat(result.draft().settingSequence()).isEqualTo(2); assertThat(result.draft().deliveryConditions()).extracting(SettingChangeDraft.DeliveryCondition::addressId).containsExactly(4L); assertThat(result.replaceableOrderIds()).containsExactly(9L); verify(addresses).requireActiveAddress(10L, "21111111-1111-4111-8111-111111111111");
     }
 
     @Test
@@ -39,7 +39,7 @@ class SettingChangePreparationServiceTest {
         Subscription subscription = Subscription.create(10L); ReflectionTestUtils.setField(subscription, "id", 1L); subscription.markScheduled(); subscription.startFirstPeriod();
         SubscriptionSetting setting = SubscriptionSetting.createAwaitingConfirmation(1L, 20L, 2, LocalDateTime.now(), LocalDate.now()); ReflectionTestUtils.setField(setting, "status", SubscriptionSettingStatus.CHANGE_PENDING);
         when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription)); when(settings.findTopBySubscriptionIdOrderBySettingSequenceDesc(1L)).thenReturn(Optional.of(setting));
-        assertThatThrownBy(() -> service.prepare(10L, new SettingChangePreparationRequest("PLN-1", List.of(new SettingChangePreparationRequest.DeliveryCondition(DeliveryWeekday.MONDAY, 1, "ADR-1", DeliveryTimeSlot.TIME_1100_1300)))))
+        assertThatThrownBy(() -> service.prepare(10L, new SettingChangePreparationRequest("11111111-1111-4111-8111-111111111111", List.of(new SettingChangePreparationRequest.DeliveryCondition(DeliveryWeekday.MONDAY, 1, "21111111-1111-4111-8111-111111111111", DeliveryTimeSlot.TIME_1100_1300)))))
             .isInstanceOf(SubscriptionChangeInProgressException.class);
     }
 
@@ -51,10 +51,10 @@ class SettingChangePreparationServiceTest {
         SubscriptionSetting setting = SubscriptionSetting.createFirstAwaitingConfirmation(1L, 20L, LocalDate.now()); ReflectionTestUtils.setField(setting, "id", 2L);
         Plan plan = mock(Plan.class); when(plan.getId()).thenReturn(3L);
         Address address = mock(Address.class); when(address.getId()).thenReturn(4L);
-        when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription)); when(settings.findTopBySubscriptionIdOrderBySettingSequenceDesc(1L)).thenReturn(Optional.of(setting)); when(plans.findByPublicId("PLN-1")).thenReturn(Optional.of(plan)); when(time.now()).thenReturn(LocalDateTime.of(2026,9,8,14,0));
-        when(addresses.requireActiveAddress(10L, "ADR-1")).thenReturn(address);
+        when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription)); when(settings.findTopBySubscriptionIdOrderBySettingSequenceDesc(1L)).thenReturn(Optional.of(setting)); when(plans.findByPublicId("11111111-1111-4111-8111-111111111111")).thenReturn(Optional.of(plan)); when(time.now()).thenReturn(LocalDateTime.of(2026,9,8,14,0));
+        when(addresses.requireActiveAddress(10L, "21111111-1111-4111-8111-111111111111")).thenReturn(address);
         when(orders.findAllBySubscriptionIdAndStatusAndKafkaDeliveryStatusAndDeliveryDateGreaterThanEqual(1L, OrderStatus.ACTIVE, OrderKafkaDeliveryStatus.NOT_SENT, LocalDate.of(2026,9,10))).thenReturn(List.of());
-        SettingChangePreparationResult result = service.prepare(10L, new SettingChangePreparationRequest("PLN-1", List.of(new SettingChangePreparationRequest.DeliveryCondition(DeliveryWeekday.MONDAY, 1, "ADR-1", DeliveryTimeSlot.TIME_1100_1300))));
+        SettingChangePreparationResult result = service.prepare(10L, new SettingChangePreparationRequest("11111111-1111-4111-8111-111111111111", List.of(new SettingChangePreparationRequest.DeliveryCondition(DeliveryWeekday.MONDAY, 1, "21111111-1111-4111-8111-111111111111", DeliveryTimeSlot.TIME_1100_1300))));
         assertThat(result.effectiveStartDate()).isEqualTo(LocalDate.of(2026,9,10));
     }
 }

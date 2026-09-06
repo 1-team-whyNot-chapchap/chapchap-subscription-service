@@ -94,7 +94,7 @@ class RegularPaymentServiceTest {
         return new FirstPaymentExecutionResult(
             transactionId, 30L, PaymentProviderCode.PORTONE, "request-key", 100_000L,
             REFERENCE_AT, REFERENCE_AT.plusSeconds(1),
-            AutomaticPaymentResult.success("PAY-external", "transaction-ref", "PAID")
+            AutomaticPaymentResult.success("550e8400-e29b-41d4-a716-446655440000", "transaction-ref", "PAID")
         );
     }
 }
