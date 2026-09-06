@@ -12,6 +12,7 @@ import com.chapchap.subscription.global.exception.payment.PaymentTransactionProc
 import com.chapchap.subscription.global.exception.subscription.SubscriptionCancellationNotAllowedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher;
 
 /** SUB-FN-007 일반 해지의 비결제 상태 전환을 처리한다. */
 @Service
@@ -20,12 +21,14 @@ public class SubscriptionCancellationPreparationService {
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final SubscriptionStatusHistoryRepository historyRepository;
     private final KstReferenceTimeProvider timeProvider;
+    private final CustomerSubscriptionNotificationPublisher customerNotificationPublisher;
 
-    public SubscriptionCancellationPreparationService(SubscriptionRepository subscriptionRepository, PaymentTransactionRepository paymentTransactionRepository, SubscriptionStatusHistoryRepository historyRepository, KstReferenceTimeProvider timeProvider) {
+    public SubscriptionCancellationPreparationService(SubscriptionRepository subscriptionRepository, PaymentTransactionRepository paymentTransactionRepository, SubscriptionStatusHistoryRepository historyRepository, KstReferenceTimeProvider timeProvider, CustomerSubscriptionNotificationPublisher customerNotificationPublisher) {
         this.subscriptionRepository = subscriptionRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.historyRepository = historyRepository;
         this.timeProvider = timeProvider;
+        this.customerNotificationPublisher = customerNotificationPublisher;
     }
 
     @Transactional
@@ -40,5 +43,8 @@ public class SubscriptionCancellationPreparationService {
         var requestedAt = timeProvider.now();
         SubscriptionStatus previous = subscription.scheduleCancellation(requestedAt);
         historyRepository.save(SubscriptionStatusHistory.create(subscription.getId(), previous, SubscriptionStatus.CANCELLATION_SCHEDULED, "CUSTOMER", "REGULAR_CANCELLATION_REQUESTED", requestedAt));
+        customerNotificationPublisher.publishNextPeriodCancellationAfterCommit(
+            subscription, "NOT_REQUIRED", requestedAt
+        );
     }
 }

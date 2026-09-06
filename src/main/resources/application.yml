@@ -49,6 +49,12 @@ app:
       topic: ${KAFKA_TOPIC_SUBSCRIPTION_AUTH_STATUS:subscription.subscription-events.v1}
     customer-delivery-address:
       topic: ${KAFKA_TOPIC_CUSTOMER_DELIVERY_ADDRESS:subscription.delivery-address-events.v1}
+    customer-payment:
+      topic: ${KAFKA_TOPIC_CUSTOMER_PAYMENT:subscription.payment-events.v1}
+    customer-refund:
+      topic: ${KAFKA_TOPIC_CUSTOMER_REFUND:subscription.refund-events.v1}
+    customer-subscription-notification:
+      topic: ${KAFKA_TOPIC_CUSTOMER_SUBSCRIPTION_NOTIFICATION:subscription.customer-notification-events.v1}
     delivery-refund:
       topic: ${KAFKA_TOPIC_DELIVERY_REFUND:delivery.refund-events.v1}
       dlt-topic: ${KAFKA_TOPIC_DELIVERY_REFUND_DLT:delivery.refund-events.v1.DLT}

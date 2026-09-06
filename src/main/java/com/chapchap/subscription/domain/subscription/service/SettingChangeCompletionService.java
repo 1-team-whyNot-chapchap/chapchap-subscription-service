@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher;
 
 /** 결제·환불이 확정한 결과를 설정·주문 상태에 반영한다. 외부 결제 호출은 하지 않는다. */
 @Service
@@ -20,11 +21,13 @@ public class SettingChangeCompletionService {
     private final SubscriptionSettingRepository settingRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final OrderRepository orderRepository;
+    private final CustomerSubscriptionNotificationPublisher customerNotificationPublisher;
 
-    public SettingChangeCompletionService(SubscriptionSettingRepository settingRepository, SubscriptionRepository subscriptionRepository, OrderRepository orderRepository) {
+    public SettingChangeCompletionService(SubscriptionSettingRepository settingRepository, SubscriptionRepository subscriptionRepository, OrderRepository orderRepository, CustomerSubscriptionNotificationPublisher customerNotificationPublisher) {
         this.settingRepository = settingRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.orderRepository = orderRepository;
+        this.customerNotificationPublisher = customerNotificationPublisher;
     }
 
     @Transactional
@@ -44,5 +47,6 @@ public class SettingChangeCompletionService {
         settingRepository.findApplicableSettings(setting.getSubscriptionId(), SubscriptionSettingStatus.ACTIVE, setting.getEffectiveStartDate()).forEach(previous -> previous.closeAt(setting.getEffectiveStartDate()));
         setting.activateChange(completedAt);
         newOrders.forEach(Order::activateChange);
+        customerNotificationPublisher.publishSettingChangedAfterCommit(setting, completedAt);
     }
 }

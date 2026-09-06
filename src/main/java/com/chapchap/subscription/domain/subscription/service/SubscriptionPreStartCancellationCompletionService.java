@@ -14,12 +14,13 @@ import com.chapchap.subscription.domain.order.entity.OrderKafkaDeliveryStatus;
 import com.chapchap.subscription.global.exception.subscription.SubscriptionKafkaDeliveryCompletedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher;
 
 /** 전액 원 결제 취소 성공 후 시작 취소 또는 다음 기간 취소를 확정한다. */
 @Service
 public class SubscriptionPreStartCancellationCompletionService {
-    private final SubscriptionRepository subscriptionRepository; private final SubscriptionPeriodRepository periodRepository; private final OrderRepository orderRepository; private final SubscriptionStatusHistoryRepository historyRepository; private final AuthSubscriptionStatusPublisher authPublisher; private final RefundRepository refundRepository;
-    public SubscriptionPreStartCancellationCompletionService(SubscriptionRepository subscriptionRepository, SubscriptionPeriodRepository periodRepository, OrderRepository orderRepository, SubscriptionStatusHistoryRepository historyRepository, AuthSubscriptionStatusPublisher authPublisher, RefundRepository refundRepository) { this.subscriptionRepository = subscriptionRepository; this.periodRepository = periodRepository; this.orderRepository = orderRepository; this.historyRepository = historyRepository; this.authPublisher = authPublisher; this.refundRepository = refundRepository; }
+    private final SubscriptionRepository subscriptionRepository; private final SubscriptionPeriodRepository periodRepository; private final OrderRepository orderRepository; private final SubscriptionStatusHistoryRepository historyRepository; private final AuthSubscriptionStatusPublisher authPublisher; private final RefundRepository refundRepository; private final KstReferenceTimeProvider timeProvider; private final CustomerSubscriptionNotificationPublisher customerNotificationPublisher;
+    public SubscriptionPreStartCancellationCompletionService(SubscriptionRepository subscriptionRepository, SubscriptionPeriodRepository periodRepository, OrderRepository orderRepository, SubscriptionStatusHistoryRepository historyRepository, AuthSubscriptionStatusPublisher authPublisher, RefundRepository refundRepository, KstReferenceTimeProvider timeProvider, CustomerSubscriptionNotificationPublisher customerNotificationPublisher) { this.subscriptionRepository = subscriptionRepository; this.periodRepository = periodRepository; this.orderRepository = orderRepository; this.historyRepository = historyRepository; this.authPublisher = authPublisher; this.refundRepository = refundRepository; this.timeProvider = timeProvider; this.customerNotificationPublisher = customerNotificationPublisher; }
     @Transactional
     public void complete(SubscriptionCancellationPreparation prepared) {
         var period = periodRepository.findWithLockById(prepared.targetPeriodId()).orElseThrow();
@@ -39,5 +40,16 @@ public class SubscriptionPreStartCancellationCompletionService {
         else subscription.scheduleCancellation(prepared.referenceAt());
         historyRepository.save(SubscriptionStatusHistory.create(subscription.getId(), previous, subscription.getStatus(), "CUSTOMER", cancellationReason, prepared.referenceAt()));
         authPublisher.publishAfterCommit(subscription, previous, subscription.getStatus(), prepared.referenceAt());
+        var confirmedAt = timeProvider.now();
+        if (prepared.cancellationType() == SubscriptionCancellationType.CANCELLATION_BEFORE_START) {
+            customerNotificationPublisher.publishCancellationConfirmedAfterCommit(
+                subscription, "CANCELLATION_BEFORE_START", prepared.referenceAt(), confirmedAt,
+                null, "COMPLETED", confirmedAt
+            );
+        } else {
+            customerNotificationPublisher.publishNextPeriodCancellationAfterCommit(
+                subscription, "COMPLETED", confirmedAt
+            );
+        }
     }
 }

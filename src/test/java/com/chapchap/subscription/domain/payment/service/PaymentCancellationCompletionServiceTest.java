@@ -37,11 +37,15 @@ class PaymentCancellationCompletionServiceTest {
     PaymentAllocationRepository allocations = mock(PaymentAllocationRepository.class);
     RefundRepository refunds = mock(RefundRepository.class);
     OrderRepository orders = mock(OrderRepository.class);
+    com.chapchap.subscription.global.kafka.customer.CustomerRefundEventPublisher customerRefundPublisher =
+        mock(com.chapchap.subscription.global.kafka.customer.CustomerRefundEventPublisher.class);
     PaymentCancellationCompletionService service;
 
     @BeforeEach
     void setUp() {
-        service = new PaymentCancellationCompletionService(payments, attempts, allocations, refunds, orders);
+        service = new PaymentCancellationCompletionService(
+            payments, attempts, allocations, refunds, orders, customerRefundPublisher
+        );
     }
 
     @Test
@@ -59,6 +63,9 @@ class PaymentCancellationCompletionServiceTest {
         assertThat(fixture.allocation().currentCancelableAmount()).isZero();
         assertThat(fixture.refund().getSuccessfulRefundAmount()).isEqualTo(10_000L);
         verify(attempts).save(any());
+        verify(customerRefundPublisher).publishTerminalAfterCommit(
+            fixture.refund(), fixture.cancellation(), result.respondedAt()
+        );
     }
 
     @Test
@@ -74,6 +81,9 @@ class PaymentCancellationCompletionServiceTest {
         assertThat(fixture.cancellation().getStatus()).isEqualTo(PaymentTransactionStatus.FAILED);
         assertThat(fixture.original().getCancelableAmount()).isEqualTo(10_000L);
         assertThat(fixture.allocation().currentCancelableAmount()).isEqualTo(10_000L);
+        verify(customerRefundPublisher).publishTerminalAfterCommit(
+            fixture.refund(), fixture.cancellation(), result.respondedAt()
+        );
     }
 
     private Fixture fixture() {

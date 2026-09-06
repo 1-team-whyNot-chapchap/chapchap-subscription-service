@@ -9,6 +9,7 @@ import com.chapchap.subscription.domain.subscription.repository.SubscriptionPeri
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionRepository;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionStatusHistoryRepository;
 import com.chapchap.subscription.global.kafka.auth.AuthSubscriptionStatusPublisher;
+import com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,10 +25,12 @@ public class SubscriptionTerminationService {
     private final SubscriptionStatusHistoryRepository historyRepository;
     private final AuthSubscriptionStatusPublisher authPublisher;
     private final KstReferenceTimeProvider timeProvider;
+    private final CustomerSubscriptionNotificationPublisher customerNotificationPublisher;
 
-    public SubscriptionTerminationService(SubscriptionPeriodRepository periodRepository, SubscriptionRepository subscriptionRepository, SubscriptionStatusHistoryRepository historyRepository, AuthSubscriptionStatusPublisher authPublisher, KstReferenceTimeProvider timeProvider) {
+    public SubscriptionTerminationService(SubscriptionPeriodRepository periodRepository, SubscriptionRepository subscriptionRepository, SubscriptionStatusHistoryRepository historyRepository, AuthSubscriptionStatusPublisher authPublisher, KstReferenceTimeProvider timeProvider, CustomerSubscriptionNotificationPublisher customerNotificationPublisher) {
         this.periodRepository = periodRepository; this.subscriptionRepository = subscriptionRepository;
         this.historyRepository = historyRepository; this.authPublisher = authPublisher; this.timeProvider = timeProvider;
+        this.customerNotificationPublisher = customerNotificationPublisher;
     }
 
     @Transactional
@@ -47,6 +50,13 @@ public class SubscriptionTerminationService {
         historyRepository.save(SubscriptionStatusHistory.create(subscription.getId(), previous, SubscriptionStatus.ENDED, ACTOR,
             previous == SubscriptionStatus.CANCELLATION_SCHEDULED ? "CANCELLATION_PERIOD_ENDED" : "REGULAR_PAYMENT_FINAL_FAILURE", endedAt));
         authPublisher.publishAfterCommit(subscription, previous, SubscriptionStatus.ENDED, endedAt);
+        customerNotificationPublisher.publishEndedAfterCommit(
+            subscription,
+            previous == SubscriptionStatus.CANCELLATION_SCHEDULED
+                ? "CUSTOMER_CANCELLATION"
+                : "REGULAR_PAYMENT_FINAL_FAILURE",
+            endedAt
+        );
     }
 
     private boolean isTerminationDue(Subscription subscription, SubscriptionPeriod current) {

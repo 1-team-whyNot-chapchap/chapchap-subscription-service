@@ -12,6 +12,7 @@ import com.chapchap.subscription.domain.subscription.service.SettingChangeAmount
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.HashSet;
+import com.chapchap.subscription.global.kafka.customer.CustomerRefundEventPublisher;
 
 @Service
 public class SettingChangeCancellationCompletionService {
@@ -20,15 +21,18 @@ public class SettingChangeCancellationCompletionService {
     private final PaymentAllocationRepository allocations;
     private final RefundRepository refunds;
     private final SettingChangeAmountService amounts;
+    private final CustomerRefundEventPublisher customerRefundPublisher;
 
     public SettingChangeCancellationCompletionService(PaymentTransactionRepository payments,
         PaymentAttemptRepository attempts, PaymentAllocationRepository allocations,
-        RefundRepository refunds, SettingChangeAmountService amounts) {
+        RefundRepository refunds, SettingChangeAmountService amounts,
+        CustomerRefundEventPublisher customerRefundPublisher) {
         this.payments = payments;
         this.attempts = attempts;
         this.allocations = allocations;
         this.refunds = refunds;
         this.amounts = amounts;
+        this.customerRefundPublisher = customerRefundPublisher;
     }
 
     @Transactional
@@ -63,6 +67,7 @@ public class SettingChangeCancellationCompletionService {
             original.applySuccessfulCancellation(result.requestedAmount());
             cancellation.markCancellationSucceeded();
             refund.addSuccessfulAmount(result.requestedAmount(), result.respondedAt());
+            customerRefundPublisher.publishTerminalAfterCommit(refund, cancellation, result.respondedAt());
             return refund.getStatus();
         }
         attempts.save(PaymentAttempt.cancellationFailure(cancellation.getId(), result.providerCode(), sequence,
@@ -70,6 +75,7 @@ public class SettingChangeCancellationCompletionService {
             provider.externalPaymentId(), provider.externalResultCode(), provider.failureReason()));
         cancellation.markCancellationFailed();
         refund.markFailed(provider.failureReason());
+        customerRefundPublisher.publishTerminalAfterCommit(refund, cancellation, result.respondedAt());
         return refund.getStatus();
     }
 }

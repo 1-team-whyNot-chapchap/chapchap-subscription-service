@@ -18,7 +18,9 @@ class SubscriptionTerminationServiceTest {
         SubscriptionStatusHistoryRepository histories = mock(SubscriptionStatusHistoryRepository.class);
         AuthSubscriptionStatusPublisher auth = mock(AuthSubscriptionStatusPublisher.class);
         KstReferenceTimeProvider time = mock(KstReferenceTimeProvider.class);
-        SubscriptionTerminationService service = new SubscriptionTerminationService(periods, subscriptions, histories, auth, time);
+        var customerPublisher = mock(com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher.class);
+        SubscriptionTerminationService service = new SubscriptionTerminationService(periods, subscriptions, histories, auth, time,
+            customerPublisher);
         LocalDate today = LocalDate.of(2026, 10, 5);
         Subscription subscription = Subscription.create(10L); ReflectionTestUtils.setField(subscription, "id", 1L); ReflectionTestUtils.setField(subscription, "status", SubscriptionStatus.CANCELLATION_SCHEDULED);
         SubscriptionPeriod period = SubscriptionPeriod.createAwaitingConfirmation(1L, 1, today.minusDays(28), LocalDateTime.of(2026, 9, 1, 0, 0)); ReflectionTestUtils.setField(period, "id", 2L); period.markScheduled(); period.start();
@@ -31,5 +33,6 @@ class SubscriptionTerminationServiceTest {
         assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.ENDED);
         verify(histories).save(any(SubscriptionStatusHistory.class));
         verify(auth).publishAfterCommit(subscription, SubscriptionStatus.CANCELLATION_SCHEDULED, SubscriptionStatus.ENDED, endedAt);
+        verify(customerPublisher).publishEndedAfterCommit(subscription, "CUSTOMER_CANCELLATION", endedAt);
     }
 }

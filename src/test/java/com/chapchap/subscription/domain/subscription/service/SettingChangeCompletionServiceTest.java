@@ -28,7 +28,9 @@ class SettingChangeCompletionServiceTest {
         SubscriptionSettingRepository settings = mock(SubscriptionSettingRepository.class);
         SubscriptionRepository subscriptions = mock(SubscriptionRepository.class);
         OrderRepository orders = mock(OrderRepository.class);
-        SettingChangeCompletionService service = new SettingChangeCompletionService(settings, subscriptions, orders);
+        var customerPublisher = mock(com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher.class);
+        SettingChangeCompletionService service = new SettingChangeCompletionService(settings, subscriptions, orders,
+            customerPublisher);
         SubscriptionSetting pending = pendingSetting();
         SubscriptionSetting previous = SubscriptionSetting.createFirstAwaitingConfirmation(1L, 1L, LocalDate.of(2026, 9, 1));
         previous.activate(LocalDateTime.of(2026, 9, 1, 0, 0));
@@ -45,6 +47,9 @@ class SettingChangeCompletionServiceTest {
         verify(newOrder).activateChange();
         assertThat(previous.getEffectiveEndExclusiveDate()).isEqualTo(LocalDate.of(2026, 9, 8));
         assertThat(pending.getStatus()).isEqualTo(SubscriptionSettingStatus.ACTIVE);
+        verify(customerPublisher).publishSettingChangedAfterCommit(
+            pending, LocalDateTime.of(2026, 9, 7, 13, 0)
+        );
     }
 
     @Test
@@ -52,7 +57,9 @@ class SettingChangeCompletionServiceTest {
         SubscriptionSettingRepository settings = mock(SubscriptionSettingRepository.class);
         SubscriptionRepository subscriptions = mock(SubscriptionRepository.class);
         OrderRepository orders = mock(OrderRepository.class);
-        SettingChangeCompletionService service = new SettingChangeCompletionService(settings, subscriptions, orders);
+        var customerPublisher = mock(com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher.class);
+        SettingChangeCompletionService service = new SettingChangeCompletionService(settings, subscriptions, orders,
+            customerPublisher);
         SubscriptionSetting pending = pendingSetting();
         Order newOrder = mock(Order.class);
         when(settings.findWithLockById(2L)).thenReturn(Optional.of(pending));
@@ -62,6 +69,7 @@ class SettingChangeCompletionServiceTest {
 
         verify(newOrder).markChangeNotApplied();
         assertThat(pending.getStatus()).isEqualTo(SubscriptionSettingStatus.CHANGE_NOT_APPLIED);
+        org.mockito.Mockito.verifyNoInteractions(customerPublisher);
     }
 
     private SubscriptionSetting pendingSetting() {

@@ -17,6 +17,7 @@ import com.chapchap.subscription.domain.payment.service.result.FirstPaymentExecu
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionPeriod;
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionPeriodStatus;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionPeriodRepository;
+import com.chapchap.subscription.global.kafka.customer.CustomerPaymentEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,12 +45,14 @@ class RegularPaymentCompletionServiceTest {
     @Mock private PaymentAllocationRepository allocationRepository;
     @Mock private SubscriptionPeriodRepository periodRepository;
     @Mock private OrderRepository orderRepository;
+    @Mock private CustomerPaymentEventPublisher customerPaymentPublisher;
     private RegularPaymentCompletionService service;
 
     @BeforeEach
     void setUp() {
         service = new RegularPaymentCompletionService(
-            transactionRepository, attemptRepository, allocationRepository, periodRepository, orderRepository
+            transactionRepository, attemptRepository, allocationRepository, periodRepository, orderRepository,
+            customerPaymentPublisher
         );
     }
 
@@ -80,6 +83,9 @@ class RegularPaymentCompletionServiceTest {
         assertThat(captor.getValue()).hasSize(2)
             .allMatch(value -> value.getAllocationType()
                 == com.chapchap.subscription.domain.payment.entity.PaymentAllocationType.REGULAR_PAYMENT);
+        verify(customerPaymentPublisher).publishCompletedAfterCommit(
+            org.mockito.ArgumentMatchers.eq(10L), org.mockito.ArgumentMatchers.any(LocalDateTime.class)
+        );
     }
 
     @Test
@@ -93,6 +99,10 @@ class RegularPaymentCompletionServiceTest {
         verify(attemptRepository).save(any(PaymentAttempt.class));
         verify(periodRepository, never()).findWithLockById(any());
         verify(allocationRepository, never()).saveAll(any());
+        verify(customerPaymentPublisher).publishRegularFailureAfterCommit(
+            org.mockito.ArgumentMatchers.eq(10L), org.mockito.ArgumentMatchers.any(LocalDateTime.class),
+            org.mockito.ArgumentMatchers.eq(false)
+        );
     }
 
     @Test
@@ -114,6 +124,10 @@ class RegularPaymentCompletionServiceTest {
         ArgumentCaptor<PaymentAttempt> captor = ArgumentCaptor.forClass(PaymentAttempt.class);
         verify(attemptRepository).save(captor.capture());
         assertThat(captor.getValue().getAttemptSequence()).isEqualTo(2);
+        verify(customerPaymentPublisher).publishRegularFailureAfterCommit(
+            org.mockito.ArgumentMatchers.eq(10L), org.mockito.ArgumentMatchers.any(LocalDateTime.class),
+            org.mockito.ArgumentMatchers.eq(true)
+        );
     }
 
     private void stubCommon(PaymentTransaction transaction, List<PaymentAttempt> attempts) {
