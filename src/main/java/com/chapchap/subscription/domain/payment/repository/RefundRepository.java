@@ -13,6 +13,9 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     /** 인증 고객의 구독에 연결된 환불을 최신 요청 순서로 조회한다. */
     List<Refund> findAllBySubscriptionIdOrderByRequestedAtDescIdDesc(Long subscriptionId);
 
+    /** 구독에 연결된 환불 중 최신 요청 한 건을 내부 순번까지 포함해 조회한다. */
+    Optional<Refund> findFirstBySubscriptionIdOrderByRequestedAtDescIdDesc(Long subscriptionId);
+
     /** 공개 식별자와 소유 구독으로 환불 상세 대상을 조회한다. */
     Optional<Refund> findByPublicIdAndSubscriptionId(String publicId, Long subscriptionId);
 

@@ -2,11 +2,13 @@ package com.chapchap.subscription.domain.payment.repository;
 
 import com.chapchap.subscription.domain.payment.entity.PaymentTransaction;
 import com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus;
+import com.chapchap.subscription.domain.payment.entity.PaymentTransactionType;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +16,12 @@ import java.util.Optional;
 public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> {
     /** 인증 고객의 결제·원 결제 취소 거래를 최신 발생 순서로 조회한다. */
     List<PaymentTransaction> findAllByUserIdOrderByOccurredAtDescIdDesc(Long userId);
+
+    /** 고객의 지정 결제 유형 중 최신 거래 한 건을 발생 시각과 내부 순번으로 조회한다. */
+    Optional<PaymentTransaction> findFirstByUserIdAndTransactionTypeInOrderByOccurredAtDescIdDesc(
+        Long userId,
+        Collection<PaymentTransactionType> transactionTypes
+    );
 
     /** 내부 업무 키로 이미 생성된 동일 업무의 결제 거래를 조회한다. */
     Optional<PaymentTransaction> findByBusinessDeduplicationKey(String businessDeduplicationKey);
