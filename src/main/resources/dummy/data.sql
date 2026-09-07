@@ -1,3 +1,13 @@
+-- Prefix 없는 UUID v4 공개 식별자 전환 전의 로컬 Fixture를 보존 가능한 형태로 정리한다.
+-- Prefix만 제거하므로 같은 로컬 업무 행과 연관관계는 유지된다.
+UPDATE addresses
+SET public_id = SUBSTRING(public_id, 5)
+WHERE public_id REGEXP '^ADR-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$';
+
+UPDATE plans
+SET public_id = SUBSTRING(public_id, 5)
+WHERE public_id REGEXP '^PLN-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$';
+
 INSERT INTO delivery_methods (
     code,
     display_name

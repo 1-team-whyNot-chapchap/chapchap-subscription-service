@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
-@ActiveProfiles("local")
+@ActiveProfiles("test")
 @Transactional
 class PaymentRepositoryIntegrationTest {
     private static final LocalDateTime REQUESTED_AT = LocalDateTime.of(2026, 9, 4, 10, 0);

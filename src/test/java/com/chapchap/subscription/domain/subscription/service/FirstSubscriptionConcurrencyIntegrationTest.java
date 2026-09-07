@@ -27,6 +27,8 @@ import com.chapchap.subscription.domain.terms.entity.Terms;
 import com.chapchap.subscription.domain.terms.entity.UserTermsAgreement;
 import com.chapchap.subscription.domain.terms.repository.TermsRepository;
 import com.chapchap.subscription.domain.terms.repository.UserTermsAgreementRepository;
+import com.chapchap.subscription.global.kafka.auth.AuthSubscriptionStatusPublisher;
+import com.chapchap.subscription.global.kafka.customer.CustomerPaymentEventPublisher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,7 +57,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
-@ActiveProfiles("local")
+@ActiveProfiles("test")
 class FirstSubscriptionConcurrencyIntegrationTest {
     private static final String TERMS_TYPE = "NON_FACE_TO_FACE_STORAGE";
     private static final int CONCURRENCY_TIMEOUT_SECONDS = 10;
@@ -76,6 +78,12 @@ class FirstSubscriptionConcurrencyIntegrationTest {
 
     @MockitoBean
     private AutomaticPaymentClient automaticPaymentClient;
+
+    @MockitoBean
+    private AuthSubscriptionStatusPublisher authSubscriptionStatusPublisher;
+
+    @MockitoBean
+    private CustomerPaymentEventPublisher customerPaymentEventPublisher;
 
     private long userId;
     private String planPublicId;

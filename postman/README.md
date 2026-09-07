@@ -1,5 +1,27 @@
 # Subscription Service Postman 검증
 
+## 로컬 검증 환경
+
+- Java 21
+- MySQL: `.env`의 `DB_URL` 또는 테스트 전용 `TEST_DB_URL`
+- Kafka: `localhost:9092`
+
+Kafka Broker 통합 테스트는 공식 Apache Kafka 이미지 기반의 로컬 구성을 사용한다.
+
+```powershell
+docker compose -f compose.kafka.yml up -d --wait
+./gradlew.bat kafkaIntegrationTest
+docker compose -f compose.kafka.yml down
+```
+
+일반 테스트는 Kafka 없이 실행되며 `chapchap_subscription_test` 전용 스키마를 기본값으로 사용한다.
+
+```powershell
+./gradlew.bat clean test
+```
+
+개별 환경에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`로 테스트 DB 접속 정보를 덮어쓸 수 있다.
+
 ## 실행
 
 애플리케이션을 `http://localhost:8082`에서 실행한 뒤 Repository 루트에서 다음 명령을 실행한다.
@@ -10,6 +32,70 @@ postman collection run postman/chapchap-subscription.postman_collection.json `
   --bail failure `
   --no-report-events
 ```
+
+공용 Collection은 다음 폴더를 포함한다.
+
+| 폴더 | 검증 범위 | 주요 사전조건 |
+|---|---|---|
+| `SUB-FN-001` | 배송지 등록·목록·수정·기본 지정·복원·삭제 | 기존 기본 배송지가 있는 테스트 고객 |
+| `SUB-FN-002` | 현재 약관 조회·동의 | 현재 필수 약관 Fixture |
+| `SUB-FN-003` | 결제수단 목록·현재 선택·소유권·등록·삭제 | 기존 결제수단 2개, 등록은 `testBillingKey`가 있을 때만 |
+| `SUB-FN-004` | 첫 구독 신청·첫 결제 | 약관·배송지·결제수단·PortOne Test Channel |
+| `SUB-FN-005` | 현재 구독 조회 | 조회 대상 구독 |
+| `SUB-FN-006` | 설정 변경·증액 결제 확인 | 이용 중 구독, 변경 플랜, 제어 가능한 PG 결과 |
+| `SUB-FN-007` | 해지·시작 취소·재시도 중단 | 취소 가능한 상태의 구독 |
+| `SUB-FN-008` | 결제·환불 목록·상세 | 상세 요청은 목록이 비면 자동 Skip |
+| `SUB-FN-017` | 플랜·메뉴·주문 목록·상세 | 주문 상세는 목록이 비면 자동 Skip |
+| `E2E` | 첫 구독, 취소·환불, 자동 갱신 결과 검증 | 아래 업무별 Fixture와 외부 연동 |
+
+상태 변경 폴더는 전체 Collection을 한 번에 실행하기보다 필요한 Fixture를 준비하고 `-i`로 선택 실행한다. 조회 중심 폴더는 다음처럼 바로 실행할 수 있다.
+
+```powershell
+postman collection run postman/chapchap-subscription.postman_collection.json `
+  -e postman/environments/local.postman_environment.json `
+  -i "SUB-FN-002" `
+  -i "SUB-FN-008" `
+  -i "SUB-FN-017" `
+  --bail failure `
+  --no-report-events
+```
+
+Postman CLI가 설치되지 않은 환경에서는 Node.js의 일회성 Newman 실행을 사용할 수 있다.
+
+```powershell
+npx --yes newman run postman/chapchap-subscription.postman_collection.json `
+  -e postman/environments/local.postman_environment.json `
+  --folder "SUB-FN-017" `
+  --bail failure
+```
+
+## E2E 실행 경계
+
+Collection의 `E2E` 폴더는 HTTP 결과 검증을 담당한다. Scheduler 실행, DB Fixture 구성, Kafka Topic 확인과 PG 결과 제어는 HTTP 요청만으로 대신하지 않는다.
+
+### 첫 구독
+
+1. `SUB-FN-017`에서 플랜을 선택한다.
+2. `SUB-FN-001`, `002`, `003`으로 배송지·약관·결제수단을 준비한다.
+3. 제어 가능한 PortOne Test Channel에서 `SUB-FN-004`를 실행한다.
+4. `E2E / 첫 구독`으로 구독·결제·주문을 확인한다.
+5. 이용 시작 Scheduler 이후 구독 상태와 Delivery Kafka Topic을 확인한다.
+
+### 취소·환불
+
+1. 취소 유형에 맞는 구독·기간·주문·결제 Fixture를 준비한다.
+2. `SUB-FN-007`을 실행한다.
+3. `E2E / 취소·환불`로 구독과 환불 결과를 확인한다.
+4. DB 배분 금액과 Auth·Customer Event를 함께 확인한다.
+
+### 자동 갱신
+
+1. 다음 이용 기간 생성 대상 Fixture를 준비한다.
+2. 다음 기간 생성, 09시 결제, 필요한 경우 13시 재시도 Scheduler를 실행한다.
+3. `E2E / 자동 갱신`으로 결제·주문·구독 결과를 확인한다.
+4. Payment·Customer·Delivery Kafka Event와 DB 최종 상태를 확인한다.
+
+운영 표준에 따라 Scheduler를 대신하는 테스트 전용 업무 API는 추가하지 않는다.
 
 ## 자동결제수단 선택 사전조건
 

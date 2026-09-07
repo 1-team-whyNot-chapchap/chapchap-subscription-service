@@ -56,3 +56,24 @@ tasks.named('test') {
         systemProperty 'chapchap.delivery-refund-kafka-integration.enabled', deliveryRefundKafkaIntegration
     }
 }
+
+tasks.register('kafkaIntegrationTest', Test) {
+    description = 'Runs the Kafka broker integration tests against localhost:9092.'
+    group = 'verification'
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    dependsOn tasks.named('testClasses')
+
+    environment 'CHAPCHAP_KAFKA_INTEGRATION_ENABLED', 'true'
+    environment 'CHAPCHAP_CUSTOMER_KAFKA_INTEGRATION_ENABLED', 'true'
+    systemProperty 'chapchap.delivery-refund-kafka-integration.enabled', 'true'
+
+    filter {
+        includeTestsMatching 'com.chapchap.subscription.global.kafka.customer.CustomerKafkaBrokerIntegrationTest'
+        includeTestsMatching 'com.chapchap.subscription.global.kafka.delivery.DeliveryOrderKafkaBrokerIntegrationTest'
+        includeTestsMatching 'com.chapchap.subscription.global.kafka.delivery.DeliveryRefundKafkaBrokerIntegrationTest'
+    }
+
+    shouldRunAfter tasks.named('test')
+}
