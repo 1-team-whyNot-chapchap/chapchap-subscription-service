@@ -53,6 +53,39 @@ class SettingChangeCompletionServiceTest {
     }
 
     @Test
+    void 동일_적용일의_직전_확정설정은_빈_적용구간으로_종료한다() {
+        SubscriptionSettingRepository settings = mock(SubscriptionSettingRepository.class);
+        SubscriptionRepository subscriptions = mock(SubscriptionRepository.class);
+        OrderRepository orders = mock(OrderRepository.class);
+        var customerPublisher = mock(com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher.class);
+        SettingChangeCompletionService service = new SettingChangeCompletionService(
+            settings, subscriptions, orders, customerPublisher
+        );
+        SubscriptionSetting pending = pendingSetting();
+        SubscriptionSetting previous = SubscriptionSetting.createAwaitingConfirmation(
+            1L, 1L, 2, LocalDateTime.of(2026, 9, 7, 11, 0), LocalDate.of(2026, 9, 8)
+        );
+        previous.activate(LocalDateTime.of(2026, 9, 7, 11, 1));
+        Order existingOrder = mock(Order.class);
+        Order newOrder = mock(Order.class);
+        when(settings.findWithLockById(2L)).thenReturn(Optional.of(pending));
+        when(orders.findAllBySubscriptionSettingId(2L)).thenReturn(List.of(newOrder));
+        when(orders.findAllBySubscriptionIdAndStatusAndKafkaDeliveryStatusAndDeliveryDateGreaterThanEqual(
+            1L, OrderStatus.ACTIVE, OrderKafkaDeliveryStatus.NOT_SENT, LocalDate.of(2026, 9, 8)
+        )).thenReturn(List.of(existingOrder));
+        when(settings.findApplicableSettings(
+            1L, SubscriptionSettingStatus.ACTIVE, LocalDate.of(2026, 9, 8)
+        )).thenReturn(List.of(previous));
+
+        service.complete(2L, SettingChangeCompletionStatus.APPROVED, LocalDateTime.of(2026, 9, 7, 13, 0));
+
+        assertThat(previous.getEffectiveEndExclusiveDate()).isEqualTo(previous.getEffectiveStartDate());
+        assertThat(pending.getStatus()).isEqualTo(SubscriptionSettingStatus.ACTIVE);
+        verify(existingOrder).inactivateForSettingChange();
+        verify(newOrder).activateChange();
+    }
+
+    @Test
     void 미적용이면_기존주문은_그대로두고_새데이터만_미적용처리한다() {
         SubscriptionSettingRepository settings = mock(SubscriptionSettingRepository.class);
         SubscriptionRepository subscriptions = mock(SubscriptionRepository.class);

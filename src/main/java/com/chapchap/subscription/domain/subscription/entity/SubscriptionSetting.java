@@ -35,7 +35,7 @@ import java.time.LocalDateTime;
                 @CheckConstraint(
                         name = "chk_subscription_settings_dates",
                         constraint = "effective_end_exclusive_date IS NULL OR "
-                                + "effective_end_exclusive_date > effective_start_date"
+                                + "effective_end_exclusive_date >= effective_start_date"
                 ),
                 @CheckConstraint(
                         name = "chk_subscription_settings_confirmation",
@@ -162,11 +162,14 @@ public class SubscriptionSetting {
         this.confirmedAt = confirmedAt;
     }
 
-    /** 확정된 새 설정이 적용될 때 이전 유효 설정의 적용 범위를 닫는다. */
+    /**
+     * 확정된 새 설정이 적용될 때 이전 유효 설정의 적용 범위를 닫는다.
+     * 같은 적용일에 다시 변경된 설정은 실제 적용된 날짜가 없으므로 빈 적용 구간으로 보존한다.
+     */
     public void closeAt(LocalDate effectiveEndExclusiveDate) {
         if (status != SubscriptionSettingStatus.ACTIVE || effectiveEndExclusiveDate == null
-                || !effectiveEndExclusiveDate.isAfter(effectiveStartDate)) {
-            throw new IllegalStateException("유효 설정의 종료일은 시작일보다 뒤여야 합니다.");
+                || effectiveEndExclusiveDate.isBefore(effectiveStartDate)) {
+            throw new IllegalStateException("유효 설정의 종료일은 시작일보다 앞설 수 없습니다.");
         }
         this.effectiveEndExclusiveDate = effectiveEndExclusiveDate;
     }

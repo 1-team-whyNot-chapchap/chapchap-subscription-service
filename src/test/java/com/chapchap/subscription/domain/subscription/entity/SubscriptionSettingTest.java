@@ -44,6 +44,29 @@ class SubscriptionSettingTest {
     }
 
     @Test
+    void 같은_적용일에_대체된_유효_설정은_빈_적용_구간으로_종료한다() {
+        SubscriptionSetting setting = SubscriptionSetting.createAwaitingConfirmation(
+            1L, 2L, 2, LocalDateTime.of(2026, 9, 7, 12, 0), LocalDate.of(2026, 9, 9)
+        );
+        setting.activate(LocalDateTime.of(2026, 9, 7, 12, 1));
+
+        setting.closeAt(LocalDate.of(2026, 9, 9));
+
+        assertThat(setting.getEffectiveEndExclusiveDate()).isEqualTo(setting.getEffectiveStartDate());
+    }
+
+    @Test
+    void 유효_설정은_적용_시작일보다_앞서_종료할_수_없다() {
+        SubscriptionSetting setting = SubscriptionSetting.createFirstAwaitingConfirmation(
+            1L, 2L, LocalDate.of(2026, 9, 9)
+        );
+        setting.activate(LocalDateTime.of(2026, 9, 8, 13, 0));
+
+        assertThatThrownBy(() -> setting.closeAt(LocalDate.of(2026, 9, 8)))
+            .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     void 첫_설정은_변경대기_상태로_만들수_없다() {
         assertThatThrownBy(() -> SubscriptionSetting.createChangePending(
             1L, 2L, 1, null, LocalDate.of(2026, 9, 9)
