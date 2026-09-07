@@ -102,6 +102,7 @@ Collection의 `E2E` 폴더는 HTTP 결과 검증을 담당한다. Scheduler 실�
 - 테스트 고객(`testUserId`, 기본값 `1`)에게 `AVAILABLE` 결제수단이 두 개 이상 존재한다.
 - 테스트 고객의 현재 결제수단은 정확히 하나다.
 - 다른 고객(`otherUserId`, 기본값 `2`)에게 `AVAILABLE` 결제수단이 하나 이상 존재한다.
+- 구독 없음 조회용 고객(`noSubscriptionUserId`, 기본값 `999999`)에게 구독 행이 없어야 한다.
 - 실행 과정에서 테스트 고객의 다른 결제수단을 현재 수단으로 선택한 뒤 최초 현재 수단으로 복원한다.
 
 Collection은 `GET /api/subscription/payment-methods` 응답에서 필요한 공개 식별자를 자동으로 찾는다. 사전조건이 충족되지 않으면 Setup 단계에서 실패하고 이후 요청을 실행하지 않는다.
