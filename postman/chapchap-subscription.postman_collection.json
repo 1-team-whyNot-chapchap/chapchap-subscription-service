@@ -769,6 +769,102 @@
       ]
     },
     {
+      "name": "SUB-FN-018",
+      "description": "Customer-AI가 X-User-Id만으로 현재 결제·최근 환불·현재 구독을 조회하는 Read-only Internal API",
+      "item": [
+        {
+          "name": "01 현재 결제 조회",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/internal/v1/current-state/payment"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('현재 결제 조회가 성공한다', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.expect(body.code).to.eql('00');",
+            "if (body.data !== null) {",
+            "  pm.expect(body.data).to.have.all.keys('status', 'paymentType', 'amount', 'occurredAt');",
+            "  pm.expect(body.data.paymentType).to.be.oneOf(['FIRST_SUBSCRIPTION_PAYMENT', 'REGULAR_PAYMENT', 'SETTING_CHANGE_PAYMENT']);",
+            "  pm.expect(body.data.occurredAt).to.match(/\\+09:00$/);",
+            "}"
+          ] } }]
+        },
+        {
+          "name": "02 최근 환불 조회",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/internal/v1/current-state/refund"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('최근 환불 조회가 성공한다', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.expect(body.code).to.eql('00');",
+            "if (body.data !== null) {",
+            "  pm.expect(body.data).to.have.all.keys('status', 'refundType', 'requestedAmount', 'refundedAmount', 'unprocessedAmount', 'requestedAt', 'completedAt');",
+            "  pm.expect(body.data.requestedAt).to.match(/\\+09:00$/);",
+            "  if (body.data.completedAt !== null) pm.expect(body.data.completedAt).to.match(/\\+09:00$/);",
+            "}"
+          ] } }]
+        },
+        {
+          "name": "03 현재 구독 조회",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/internal/v1/current-state/subscription"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('현재 구독 조회가 성공한다', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.expect(body.code).to.eql('00');",
+            "if (body.data !== null) {",
+            "  pm.expect(body.data).to.have.all.keys('status');",
+            "  pm.expect(body.data.status).to.be.oneOf(['AWAITING_CONFIRMATION', 'SCHEDULED', 'IN_PROGRESS', 'CANCELLATION_SCHEDULED', 'PAYMENT_FAILED', 'CANCELED_BEFORE_START', 'ENDED']);",
+            "}"
+          ] } }]
+        },
+        {
+          "name": "04 데이터 없음",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{currentStateEmptyUserId}}" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/internal/v1/current-state/subscription"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('데이터 없음은 200과 null로 응답한다', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.expect(body.code).to.eql('00');",
+            "pm.expect(body.message).to.eql('SUCCESS');",
+            "pm.expect(body.data).to.eql(null);"
+          ] } }]
+        },
+        {
+          "name": "05 잘못된 X-User-Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "0" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/internal/v1/current-state/payment"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('잘못된 고객 식별자는 COMMON_001로 거절한다', () => pm.response.to.have.status(400));",
+            "pm.expect(pm.response.json().code).to.eql('COMMON_001');"
+          ] } }]
+        }
+      ]
+    },
+    {
       "name": "E2E",
       "description": "업무 흐름별 실행 순서. 각 요청의 사전조건과 DB·Kafka 확인 항목은 Postman README를 따른다.",
       "item": [
@@ -924,6 +1020,7 @@
     { "key": "testSubscriptionId", "value": "" },
     { "key": "testPaymentId", "value": "" },
     { "key": "testRefundId", "value": "" },
-    { "key": "testOrderId", "value": "" }
+    { "key": "testOrderId", "value": "" },
+    { "key": "currentStateEmptyUserId", "value": "9223372036854770000" }
   ]
 }
