@@ -20,9 +20,6 @@ import java.util.stream.Collectors;
 @Service
 public class FirstOrderService {
     private static final long DELIVERY_FEE = 3_000L;
-    private static final long FIRST_DISCOUNT_RATE = 30L;
-    private static final long PERCENT_DENOMINATOR = 100L;
-
     private final OrderRepository orderRepository;
     private final HolidayRepository holidayRepository;
 
@@ -102,7 +99,7 @@ public class FirstOrderService {
         FirstOrderPreparationCommand.AddressSnapshot address = delivery.address();
         long mealAmount = Math.multiplyExact(plan.mealUnitPrice(), delivery.mealQuantity().longValue());
         long discountAmount = command.applyFirstDiscount()
-            ? calculateFirstDiscount(plan.mealUnitPrice())
+            ? FirstSubscriptionDiscountCalculator.calculate(plan.mealUnitPrice())
             : 0L;
         long actualAllocatedAmount = Math.subtractExact(
             Math.addExact(mealAmount, DELIVERY_FEE),
@@ -137,14 +134,6 @@ public class FirstOrderService {
             .entrancePassword(address.entrancePassword())
             .deliveryTimeSlot(delivery.deliveryTimeSlot())
             .build();
-    }
-
-    private long calculateFirstDiscount(long mealUnitPrice) {
-        long discountNumerator = Math.multiplyExact(mealUnitPrice, FIRST_DISCOUNT_RATE);
-        if (discountNumerator % PERCENT_DENOMINATOR != 0) {
-            throw new IllegalArgumentException("First discount must be an exact amount in won");
-        }
-        return discountNumerator / PERCENT_DENOMINATOR;
     }
 
     private void validateDeliveries(FirstOrderPreparationCommand command) {

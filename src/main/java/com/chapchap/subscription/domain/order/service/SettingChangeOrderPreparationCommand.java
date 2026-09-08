@@ -12,10 +12,12 @@ public record SettingChangeOrderPreparationCommand(
     Long subscriptionSettingId,
     Long termsAgreementId,
     PlanSnapshot plan,
+    PricingPolicy pricingPolicy,
     List<Delivery> deliveries
 ) {
     public SettingChangeOrderPreparationCommand {
-        if (userId == null || subscriptionId == null || termsAgreementId == null || plan == null || deliveries == null) {
+        if (userId == null || subscriptionId == null || termsAgreementId == null || plan == null
+            || pricingPolicy == null || deliveries == null) {
             throw new IllegalArgumentException("설정 변경 주문 생성 입력이 누락되었습니다.");
         }
         deliveries = List.copyOf(deliveries);
@@ -24,8 +26,14 @@ public record SettingChangeOrderPreparationCommand(
     /** 변경 대기 설정이 저장된 뒤 생성된 내부 식별자를 주문 생성 입력에 결합한다. */
     public SettingChangeOrderPreparationCommand withSubscriptionSettingId(Long subscriptionSettingId) {
         return new SettingChangeOrderPreparationCommand(
-            userId, subscriptionId, subscriptionSettingId, termsAgreementId, plan, deliveries
+            userId, subscriptionId, subscriptionSettingId, termsAgreementId, plan, pricingPolicy, deliveries
         );
+    }
+
+    public enum PricingPolicy {
+        PRESERVE_REPLACED_ORDER,
+        RECALCULATE_WITH_FIRST_DISCOUNT,
+        RECALCULATE_WITHOUT_DISCOUNT
     }
 
     public record PlanSnapshot(Long planId, String planName, Long mealUnitPrice) {
@@ -44,6 +52,16 @@ public record SettingChangeOrderPreparationCommand(
     ) {
     }
 
+    public record AmountSnapshot(
+        Long mealUnitPrice,
+        Integer mealQuantity,
+        Long mealAmount,
+        Long deliveryFee,
+        Long discountAmount,
+        Long actualAllocatedAmount
+    ) {
+    }
+
     public record Delivery(
         Long subscriptionPeriodId,
         LocalDate deliveryDate,
@@ -54,6 +72,7 @@ public record SettingChangeOrderPreparationCommand(
         Integer menuSequence,
         String menuName,
         Integer mealQuantity,
+        AmountSnapshot replacementAmount,
         AddressSnapshot address,
         OrderDeliveryTimeSlot deliveryTimeSlot
     ) {
