@@ -38,7 +38,7 @@ class CustomerPaymentEventPublisherTest {
     @BeforeEach
     void setUp() {
         CustomerPaymentKafkaProperties properties = new CustomerPaymentKafkaProperties();
-        properties.setTopic("subscription.payment-events.v1");
+        properties.setTopic("msa4-team1.subscription.payment-events.v1");
         publisher = new CustomerPaymentEventPublisher(kafkaTemplate, properties, payments, orders);
         org.mockito.Mockito.lenient().when(payments.findById(1L)).thenReturn(Optional.of(payment));
         org.mockito.Mockito.lenient().when(payment.getPublicId()).thenReturn("11111111-1111-4111-8111-111111111111");
@@ -68,7 +68,7 @@ class CustomerPaymentEventPublisherTest {
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(kafkaTemplate).send(
-            org.mockito.ArgumentMatchers.eq("subscription.payment-events.v1"),
+            org.mockito.ArgumentMatchers.eq("msa4-team1.subscription.payment-events.v1"),
             org.mockito.ArgumentMatchers.eq("11111111-1111-4111-8111-111111111111"),
             eventCaptor.capture()
         );
@@ -98,7 +98,7 @@ class CustomerPaymentEventPublisherTest {
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(kafkaTemplate).send(
-            org.mockito.ArgumentMatchers.eq("subscription.payment-events.v1"),
+            org.mockito.ArgumentMatchers.eq("msa4-team1.subscription.payment-events.v1"),
             org.mockito.ArgumentMatchers.eq("11111111-1111-4111-8111-111111111111"),
             eventCaptor.capture()
         );

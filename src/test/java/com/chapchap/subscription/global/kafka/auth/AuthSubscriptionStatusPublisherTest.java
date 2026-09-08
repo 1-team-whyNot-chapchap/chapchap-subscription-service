@@ -21,7 +21,7 @@ class AuthSubscriptionStatusPublisherTest {
     void setUp() {
         kafkaTemplate = mock(KafkaTemplate.class);
         AuthSubscriptionKafkaProperties properties = new AuthSubscriptionKafkaProperties();
-        properties.setTopic("subscription.subscription-events.v1");
+        properties.setTopic("msa4-team1.subscription.subscription-events.v1");
         publisher = new AuthSubscriptionStatusPublisher(kafkaTemplate, properties);
         subscription = Subscription.create(10L);
         ReflectionTestUtils.setField(subscription, "id", 1L);
@@ -34,7 +34,7 @@ class AuthSubscriptionStatusPublisherTest {
 
         verify(kafkaTemplate, times(1)).send(anyString(), anyString(), any());
         Object[] arguments = mockingDetails(kafkaTemplate).getInvocations().iterator().next().getArguments();
-        assertThat(arguments[0]).isEqualTo("subscription.subscription-events.v1");
+        assertThat(arguments[0]).isEqualTo("msa4-team1.subscription.subscription-events.v1");
         assertThat(arguments[1]).isEqualTo("10");
         SubscriptionStatusChangedEvent event = (SubscriptionStatusChangedEvent) arguments[2];
         assertThat(subscription.getAuthSubscriptionVersion()).isEqualTo(1);

@@ -54,7 +54,7 @@ import static org.mockito.Mockito.when;
 @Transactional
 @EnabledIfEnvironmentVariable(named = "CHAPCHAP_KAFKA_INTEGRATION_ENABLED", matches = "true")
 class DeliveryOrderKafkaBrokerIntegrationTest {
-    private static final String TOPIC = "subscription.delivery-orders.v1";
+    private static final String TOPIC = "msa4-team1.subscription.delivery-orders.v1";
 
     @Autowired private OrderRepository orderRepository;
     @Autowired private OrderDeliveryAttemptRepository attemptRepository;

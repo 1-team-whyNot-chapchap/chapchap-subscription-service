@@ -43,7 +43,7 @@ class DeliveryOrderPublisherServiceTest {
         UserTermsAgreementRepository agreements = mock(UserTermsAgreementRepository.class);
         @SuppressWarnings("unchecked") KafkaTemplate<String, Object> template = mock(KafkaTemplate.class);
         DeliveryOrderKafkaProperties properties = new DeliveryOrderKafkaProperties();
-        properties.setTopic("subscription.delivery-orders.v1");
+        properties.setTopic("msa4-team1.subscription.delivery-orders.v1");
         KafkaDeliveryFailureRepository failures = mock(KafkaDeliveryFailureRepository.class);
         DeliveryOrderPublisherService service = new DeliveryOrderPublisherService(
             orders, attempts, failures, holidays, menus, agreements, template, properties, new KstReferenceTimeProvider()
@@ -54,7 +54,7 @@ class DeliveryOrderPublisherServiceTest {
         UserTermsAgreement agreement = UserTermsAgreement.create(10L, 3L, LocalDateTime.of(2026, 9, 1, 10, 0));
         SendResult<String, Object> sendResult = mock(SendResult.class);
         RecordMetadata metadata = mock(RecordMetadata.class);
-        when(metadata.topic()).thenReturn("subscription.delivery-orders.v1");
+        when(metadata.topic()).thenReturn("msa4-team1.subscription.delivery-orders.v1");
         when(metadata.partition()).thenReturn(0);
         when(metadata.offset()).thenReturn(42L);
         when(sendResult.getRecordMetadata()).thenReturn(metadata);
@@ -62,13 +62,13 @@ class DeliveryOrderPublisherServiceTest {
         when(orders.findAllByDeliveryDateAndStatusAndKafkaDeliveryStatus(any(), any(), any())).thenReturn(List.of(order));
         when(menus.findById(7L)).thenReturn(Optional.of(menu));
         when(agreements.findById(5L)).thenReturn(Optional.of(agreement));
-        when(template.send(eq("subscription.delivery-orders.v1"), eq(order.getPublicId()), any()))
+        when(template.send(eq("msa4-team1.subscription.delivery-orders.v1"), eq(order.getPublicId()), any()))
             .thenReturn(CompletableFuture.completedFuture(sendResult));
 
         service.publishInitialOrders(LocalDate.of(2026, 9, 7));
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(template).send(eq("subscription.delivery-orders.v1"), eq(order.getPublicId()), eventCaptor.capture());
+        verify(template).send(eq("msa4-team1.subscription.delivery-orders.v1"), eq(order.getPublicId()), eventCaptor.capture());
         SubscriptionDeliveryOrderReadyEvent event = (SubscriptionDeliveryOrderReadyEvent) eventCaptor.getValue();
         assertThat(event.eventType()).isEqualTo(SubscriptionDeliveryOrderReadyEvent.EVENT_TYPE);
         assertThat(event.userId()).isEqualTo(10L);
