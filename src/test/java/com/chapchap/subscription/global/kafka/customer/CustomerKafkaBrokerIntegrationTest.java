@@ -47,9 +47,9 @@ import static org.mockito.Mockito.when;
 /** Docker Desktop의 로컬 Kafka Broker가 있을 때만 수행하는 Customer Producer 직렬화 검증이다. */
 @EnabledIfEnvironmentVariable(named = "CHAPCHAP_CUSTOMER_KAFKA_INTEGRATION_ENABLED", matches = "true")
 class CustomerKafkaBrokerIntegrationTest {
-    private static final String PAYMENT_TOPIC = "subscription.payment-events.v1";
-    private static final String REFUND_TOPIC = "subscription.refund-events.v1";
-    private static final String NOTIFICATION_TOPIC = "subscription.customer-notification-events.v1";
+    private static final String PAYMENT_TOPIC = "msa4-team1.subscription.payment-events.v1";
+    private static final String REFUND_TOPIC = "msa4-team1.subscription.refund-events.v1";
+    private static final String NOTIFICATION_TOPIC = "msa4-team1.subscription.customer-notification-events.v1";
     private final String bootstrapServers = System.getenv().getOrDefault(
         "KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"
     );

@@ -29,7 +29,7 @@ class CustomerRefundEventPublisherTest {
     @BeforeEach
     void setUp() {
         CustomerRefundKafkaProperties properties = new CustomerRefundKafkaProperties();
-        properties.setTopic("subscription.refund-events.v1");
+        properties.setTopic("msa4-team1.subscription.refund-events.v1");
         publisher = new CustomerRefundEventPublisher(kafkaTemplate, properties);
         org.mockito.Mockito.lenient().when(refund.getPublicId()).thenReturn("22222222-2222-4222-8222-222222222222");
         org.mockito.Mockito.lenient().when(refund.getRefundType()).thenReturn(RefundType.NEXT_PERIOD_FULL_CANCELLATION);
@@ -47,7 +47,7 @@ class CustomerRefundEventPublisherTest {
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(kafkaTemplate).send(
-            org.mockito.ArgumentMatchers.eq("subscription.refund-events.v1"),
+            org.mockito.ArgumentMatchers.eq("msa4-team1.subscription.refund-events.v1"),
             org.mockito.ArgumentMatchers.eq("22222222-2222-4222-8222-222222222222"),
             eventCaptor.capture()
         );

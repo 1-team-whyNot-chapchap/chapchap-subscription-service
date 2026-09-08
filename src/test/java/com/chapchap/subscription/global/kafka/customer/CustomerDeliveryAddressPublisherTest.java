@@ -20,7 +20,7 @@ class CustomerDeliveryAddressPublisherTest {
     void setUp() {
         kafkaTemplate = mock(KafkaTemplate.class);
         CustomerDeliveryAddressKafkaProperties properties = new CustomerDeliveryAddressKafkaProperties();
-        properties.setTopic("subscription.delivery-address-events.v1");
+        properties.setTopic("msa4-team1.subscription.delivery-address-events.v1");
         publisher = new CustomerDeliveryAddressPublisher(kafkaTemplate, properties);
         address = Address.create(10L, "집", "수령인", "01012345678", "12345", "대구 주소", null, "DIRECT", null, null, false);
         ReflectionTestUtils.setField(address, "publicId", "11111111-1111-4111-8111-111111111111");
@@ -34,7 +34,7 @@ class CustomerDeliveryAddressPublisherTest {
         verify(kafkaTemplate, times(1)).send(anyString(), anyString(), any());
         Object[] args = mockingDetails(kafkaTemplate).getInvocations().iterator().next().getArguments();
         DeliveryAddressChangedEvent event = (DeliveryAddressChangedEvent) args[2];
-        assertThat(args[0]).isEqualTo("subscription.delivery-address-events.v1");
+        assertThat(args[0]).isEqualTo("msa4-team1.subscription.delivery-address-events.v1");
         assertThat(args[1]).isEqualTo(address.getPublicId());
         assertThat(event.userId()).isEqualTo(10L);
         assertThat(event.data().deliveryAddressId()).isEqualTo(address.getPublicId());

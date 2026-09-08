@@ -46,7 +46,7 @@ class CustomerSubscriptionNotificationPublisherTest {
     void setUp() {
         CustomerSubscriptionNotificationKafkaProperties properties =
             new CustomerSubscriptionNotificationKafkaProperties();
-        properties.setTopic("subscription.customer-notification-events.v1");
+        properties.setTopic("msa4-team1.subscription.customer-notification-events.v1");
         publisher = new CustomerSubscriptionNotificationPublisher(
             kafkaTemplate, properties, subscriptions, periods, plans, conditions, addresses
         );
@@ -81,7 +81,7 @@ class CustomerSubscriptionNotificationPublisherTest {
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(kafkaTemplate).send(
-            org.mockito.ArgumentMatchers.eq("subscription.customer-notification-events.v1"),
+            org.mockito.ArgumentMatchers.eq("msa4-team1.subscription.customer-notification-events.v1"),
             org.mockito.ArgumentMatchers.eq("25"),
             eventCaptor.capture()
         );
@@ -124,7 +124,7 @@ class CustomerSubscriptionNotificationPublisherTest {
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(kafkaTemplate).send(
-            org.mockito.ArgumentMatchers.eq("subscription.customer-notification-events.v1"),
+            org.mockito.ArgumentMatchers.eq("msa4-team1.subscription.customer-notification-events.v1"),
             org.mockito.ArgumentMatchers.eq("25"),
             eventCaptor.capture()
         );
