@@ -43,17 +43,57 @@ public class SettingChangeOrderService {
     ) {
         SettingChangeOrderPreparationCommand.PlanSnapshot plan = command.plan();
         SettingChangeOrderPreparationCommand.AddressSnapshot address = delivery.address();
-        long mealAmount = Math.multiplyExact(plan.mealUnitPrice(), delivery.mealQuantity().longValue());
-        long actualAllocatedAmount = Math.addExact(mealAmount, DELIVERY_FEE);
+        OrderAmounts amounts = amounts(command.pricingPolicy(), plan, delivery);
         return Order.createChangePending(
             command.userId(), command.subscriptionId(), delivery.subscriptionPeriodId(), command.subscriptionSettingId(),
             command.termsAgreementId(), plan.planId(), address.addressId(), delivery.menuId(), delivery.deliveryDate(),
             delivery.revisionSequence(), delivery.replacementTargetOrderId(), plan.planName(), delivery.menuName(),
-            plan.mealUnitPrice(), delivery.mealQuantity(), mealAmount, DELIVERY_FEE, 0L, actualAllocatedAmount,
+            amounts.mealUnitPrice(), amounts.mealQuantity(), amounts.mealAmount(), amounts.deliveryFee(),
+            amounts.discountAmount(), amounts.actualAllocatedAmount(),
             address.recipientName(), address.recipientPhone(), address.postalCode(), address.addressLine1(),
             address.addressLine2(), address.deliveryMethodCode(), address.otherDeliveryRequest(),
             address.entrancePassword(), delivery.deliveryTimeSlot()
         );
+    }
+
+    private OrderAmounts amounts(
+        SettingChangeOrderPreparationCommand.PricingPolicy pricingPolicy,
+        SettingChangeOrderPreparationCommand.PlanSnapshot plan,
+        SettingChangeOrderPreparationCommand.Delivery delivery
+    ) {
+        if (pricingPolicy == SettingChangeOrderPreparationCommand.PricingPolicy.PRESERVE_REPLACED_ORDER) {
+            SettingChangeOrderPreparationCommand.AmountSnapshot snapshot = delivery.replacementAmount();
+            if (snapshot == null || !delivery.mealQuantity().equals(snapshot.mealQuantity())) {
+                throw new IllegalArgumentException("가격 비영향 변경은 같은 배송일 기존 주문의 금액 정보가 필요합니다.");
+            }
+            return new OrderAmounts(
+                snapshot.mealUnitPrice(), snapshot.mealQuantity(), snapshot.mealAmount(), snapshot.deliveryFee(),
+                snapshot.discountAmount(), snapshot.actualAllocatedAmount()
+            );
+        }
+
+        long mealAmount = Math.multiplyExact(plan.mealUnitPrice(), delivery.mealQuantity().longValue());
+        long discountAmount = pricingPolicy
+            == SettingChangeOrderPreparationCommand.PricingPolicy.RECALCULATE_WITH_FIRST_DISCOUNT
+            ? FirstSubscriptionDiscountCalculator.calculate(plan.mealUnitPrice())
+            : 0L;
+        long actualAllocatedAmount = Math.subtractExact(
+            Math.addExact(mealAmount, DELIVERY_FEE), discountAmount
+        );
+        return new OrderAmounts(
+            plan.mealUnitPrice(), delivery.mealQuantity(), mealAmount, DELIVERY_FEE,
+            discountAmount, actualAllocatedAmount
+        );
+    }
+
+    private record OrderAmounts(
+        Long mealUnitPrice,
+        Integer mealQuantity,
+        Long mealAmount,
+        Long deliveryFee,
+        Long discountAmount,
+        Long actualAllocatedAmount
+    ) {
     }
 
     private void validate(SettingChangeOrderPreparationCommand command) {
