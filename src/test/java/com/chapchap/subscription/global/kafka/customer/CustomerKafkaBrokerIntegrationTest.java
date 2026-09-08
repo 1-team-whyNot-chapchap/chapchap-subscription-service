@@ -15,6 +15,8 @@ import com.chapchap.subscription.domain.subscription.repository.PlanRepository;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionDeliveryConditionRepository;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionPeriodRepository;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionRepository;
+import com.chapchap.subscription.global.kafka.auth.AuthSubscriptionStatus;
+import com.chapchap.subscription.global.kafka.auth.SubscriptionStatusChangedEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -29,11 +31,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,21 +53,49 @@ class CustomerKafkaBrokerIntegrationTest {
     private static final String PAYMENT_TOPIC = "msa4-team1.subscription.payment-events.v1";
     private static final String REFUND_TOPIC = "msa4-team1.subscription.refund-events.v1";
     private static final String NOTIFICATION_TOPIC = "msa4-team1.subscription.customer-notification-events.v1";
+    private static final String AUTH_TOPIC = "msa4-team1.subscription.subscription-events.v1";
+    private static final String ADDRESS_TOPIC = "msa4-team1.subscription.delivery-address-events.v1";
     private final String bootstrapServers = System.getenv().getOrDefault(
         "KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"
     );
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     @Test
-    void 세_Customer_Topic에_애플리케이션_Event를_직렬화해_저장한다() throws Exception {
+    void 모든_Producer_영역의_대표_Event를_Source_날짜시각_문자열로_저장한다() throws Exception {
         DefaultKafkaProducerFactory<String, Object> factory = producerFactory();
         try {
             KafkaTemplate<String, Object> template = new KafkaTemplate<>(factory);
             verifyPaymentTopic(template);
+            verifyPaymentFailureTopic(template);
             verifyRefundTopic(template);
             verifyNotificationTopic(template);
+            verifySettingChangedTopic(template);
+            verifyAuthTopic(template);
+            verifyAddressTopic(template);
         } finally {
             factory.destroy();
+        }
+    }
+
+    private void verifyPaymentFailureTopic(KafkaTemplate<String, Object> template) throws Exception {
+        String paymentId = UUID.randomUUID().toString();
+        OffsetDateTime failedAt = OffsetDateTime.parse("2026-09-06T09:00:00+09:00");
+        PaymentFailedEvent event = new PaymentFailedEvent(
+            UUID.randomUUID().toString(), PaymentFailedEvent.EVENT_TYPE, 1, failedAt, 25L,
+            new PaymentFailedEvent.RetryWaitingData(
+                paymentId, 2L, "REGULAR_PAYMENT", "RETRY_WAITING", 12_900L, failedAt,
+                OffsetDateTime.parse("2026-09-06T13:00:00+09:00")
+            )
+        );
+
+        try (KafkaConsumer<String, String> consumer = consumer(PAYMENT_TOPIC)) {
+            template.send(PAYMENT_TOPIC, paymentId, event);
+            JsonNode stored = objectMapper.readTree(awaitRecord(consumer, paymentId).value());
+            assertThat(stored.path("occurredAt").asText()).isEqualTo("2026-09-06T09:00:00+09:00");
+            assertThat(stored.path("data").path("failedAt").asText())
+                .isEqualTo("2026-09-06T09:00:00+09:00");
+            assertThat(stored.path("data").path("retryScheduledAt").asText())
+                .isEqualTo("2026-09-06T13:00:00+09:00");
         }
     }
 
@@ -94,6 +125,12 @@ class CustomerKafkaBrokerIntegrationTest {
                 .publishCompletedAfterCommit(1L, LocalDateTime.of(2026, 9, 6, 22, 0));
             JsonNode event = objectMapper.readTree(awaitRecord(consumer, paymentId).value());
             assertThat(event.path("eventType").asText()).isEqualTo("PAYMENT_COMPLETED");
+            assertThat(event.path("occurredAt").isTextual()).isTrue();
+            assertThat(event.path("occurredAt").asText()).isEqualTo("2026-09-06T22:00:00+09:00");
+            assertThat(event.path("data").path("periodStartDate").isTextual()).isTrue();
+            assertThat(event.path("data").path("periodStartDate").asText()).isEqualTo("2026-09-07");
+            assertThat(event.path("data").path("periodEndDate").isTextual()).isTrue();
+            assertThat(event.path("data").path("periodEndDate").asText()).isEqualTo("2026-10-04");
             assertThat(event.path("data").path("discountAmount").asLong()).isEqualTo(1_000L);
         }
     }
@@ -117,6 +154,9 @@ class CustomerKafkaBrokerIntegrationTest {
                 .publishTerminalAfterCommit(refund, cancellation, completedAt);
             JsonNode event = objectMapper.readTree(awaitRecord(consumer, refundId).value());
             assertThat(event.path("eventType").asText()).isEqualTo("REFUND_COMPLETED");
+            assertThat(event.path("occurredAt").asText()).isEqualTo("2026-09-06T22:01:00+09:00");
+            assertThat(event.path("data").path("completedAt").asText())
+                .isEqualTo("2026-09-06T22:01:00+09:00");
             assertThat(event.path("data").path("refundedAmount").asLong()).isEqualTo(8_900L);
         }
     }
@@ -141,7 +181,59 @@ class CustomerKafkaBrokerIntegrationTest {
             );
             JsonNode event = objectMapper.readTree(awaitRecord(consumer, "25").value());
             assertThat(event.path("eventType").asText()).isEqualTo("SUBSCRIPTION_ENDED");
+            assertThat(event.path("occurredAt").asText()).isEqualTo("2026-09-06T22:02:00+09:00");
+            assertThat(event.path("data").path("endedAt").asText())
+                .isEqualTo("2026-09-06T22:02:00+09:00");
             assertThat(event.path("data").path("endReason").asText()).isEqualTo("CUSTOMER_CANCELLATION");
+        }
+    }
+
+    private void verifySettingChangedTopic(KafkaTemplate<String, Object> template) throws Exception {
+        String key = UUID.randomUUID().toString();
+        SubscriptionSettingChangedEvent event = new SubscriptionSettingChangedEvent(
+            UUID.randomUUID().toString(), SubscriptionSettingChangedEvent.EVENT_TYPE, 1,
+            OffsetDateTime.parse("2026-09-06T22:03:00+09:00"), 25L,
+            new SubscriptionSettingChangedEvent.Data(2, LocalDate.parse("2026-09-08"), "가정식", List.of())
+        );
+
+        try (KafkaConsumer<String, String> consumer = consumer(NOTIFICATION_TOPIC)) {
+            template.send(NOTIFICATION_TOPIC, key, event);
+            JsonNode stored = objectMapper.readTree(awaitRecord(consumer, key).value());
+            assertThat(stored.path("occurredAt").asText()).isEqualTo("2026-09-06T22:03:00+09:00");
+            assertThat(stored.path("data").path("effectiveDate").isTextual()).isTrue();
+            assertThat(stored.path("data").path("effectiveDate").asText()).isEqualTo("2026-09-08");
+        }
+    }
+
+    private void verifyAuthTopic(KafkaTemplate<String, Object> template) throws Exception {
+        String key = UUID.randomUUID().toString();
+        SubscriptionStatusChangedEvent event = new SubscriptionStatusChangedEvent(
+            UUID.randomUUID().toString(), SubscriptionStatusChangedEvent.EVENT_TYPE, 1,
+            OffsetDateTime.parse("2026-09-06T22:04:00+09:00"), 25L,
+            new SubscriptionStatusChangedEvent.Data(AuthSubscriptionStatus.ACTIVE, 2)
+        );
+
+        try (KafkaConsumer<String, String> consumer = consumer(AUTH_TOPIC)) {
+            template.send(AUTH_TOPIC, key, event);
+            JsonNode stored = objectMapper.readTree(awaitRecord(consumer, key).value());
+            assertThat(stored.path("occurredAt").isTextual()).isTrue();
+            assertThat(stored.path("occurredAt").asText()).isEqualTo("2026-09-06T22:04:00+09:00");
+        }
+    }
+
+    private void verifyAddressTopic(KafkaTemplate<String, Object> template) throws Exception {
+        String key = UUID.randomUUID().toString();
+        DeliveryAddressChangedEvent event = new DeliveryAddressChangedEvent(
+            UUID.randomUUID().toString(), DeliveryAddressChangedEvent.EVENT_TYPE, 1,
+            OffsetDateTime.parse("2026-09-06T22:05:00+09:00"), 25L,
+            new DeliveryAddressChangedEvent.Data(UUID.randomUUID().toString(), 2L, "회사")
+        );
+
+        try (KafkaConsumer<String, String> consumer = consumer(ADDRESS_TOPIC)) {
+            template.send(ADDRESS_TOPIC, key, event);
+            JsonNode stored = objectMapper.readTree(awaitRecord(consumer, key).value());
+            assertThat(stored.path("occurredAt").isTextual()).isTrue();
+            assertThat(stored.path("occurredAt").asText()).isEqualTo("2026-09-06T22:05:00+09:00");
         }
     }
 
@@ -149,7 +241,7 @@ class CustomerKafkaBrokerIntegrationTest {
         return new DefaultKafkaProducerFactory<>(Map.of(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class,
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class,
             ProducerConfig.ACKS_CONFIG, "all",
             ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true
         ));

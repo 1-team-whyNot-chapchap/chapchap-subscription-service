@@ -30,7 +30,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -106,7 +106,14 @@ class DeliveryOrderKafkaBrokerIntegrationTest {
 
             assertThat(record.key()).isEqualTo(order.getPublicId());
             assertThat(event.path("eventType").asText()).isEqualTo("SUBSCRIPTION_DELIVERY_ORDER_READY");
+            assertThat(event.path("occurredAt").isTextual()).isTrue();
+            assertThat(event.path("occurredAt").asText()).endsWith("+09:00");
             assertThat(event.path("data").path("orderId").asText()).isEqualTo(order.getPublicId());
+            assertThat(event.path("data").path("deliveryDate").isTextual()).isTrue();
+            assertThat(event.path("data").path("deliveryDate").asText()).isEqualTo("2026-09-08");
+            assertThat(event.path("data").path("termsAgreedAt").isTextual()).isTrue();
+            assertThat(event.path("data").path("termsAgreedAt").asText())
+                .isEqualTo("2026-09-01T10:00:00+09:00");
             assertThat(event.path("data").path("deliveryAreaCode").isMissingNode()).isTrue();
             assertThat(event.path("data").path("entranceInformation").asText()).isEqualTo("7003");
             assertThat(order.getKafkaDeliveryStatus()).isEqualTo(OrderKafkaDeliveryStatus.COMPLETED);
@@ -313,7 +320,7 @@ class DeliveryOrderKafkaBrokerIntegrationTest {
         return new DefaultKafkaProducerFactory<>(Map.of(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:1",
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class,
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class,
             ProducerConfig.ACKS_CONFIG, "all",
             ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true,
             ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 2_000,
