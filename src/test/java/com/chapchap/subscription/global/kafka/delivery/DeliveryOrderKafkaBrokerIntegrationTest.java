@@ -330,7 +330,7 @@ class DeliveryOrderKafkaBrokerIntegrationTest {
 
     private Order awaitingOrder(LocalDate deliveryDate) {
         return Order.createAwaitingConfirmation(
-            10L, uniqueId(), uniqueId(), uniqueId(), 5L, uniqueId(), uniqueId(), 7L, deliveryDate,
+            10L, uniqueId(), uniqueId(), uniqueId(), 5L, uniqueId(), uniqueId(), 7L, deliveryDate, 1,
             "Kafka 통합 테스트 플랜", "Kafka 통합 테스트 메뉴", 8_900L, 2, 17_800L, 0L, 0L, 17_800L,
             "테스트 수령인", "010-0000-0000", "41911", "대구광역시 중구 테스트로 1", "101호",
             "DOORSTEP", null, "7003", OrderDeliveryTimeSlot.TIME_1100_1300

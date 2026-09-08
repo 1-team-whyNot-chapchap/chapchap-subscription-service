@@ -11,6 +11,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     Optional<Subscription> findByUserId(Long userId);
 
+    boolean existsByUserId(Long userId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Subscription> findWithLockById(Long id);
 

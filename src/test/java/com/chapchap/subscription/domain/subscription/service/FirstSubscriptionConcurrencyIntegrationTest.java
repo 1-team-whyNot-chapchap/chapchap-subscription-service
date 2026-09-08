@@ -2,7 +2,10 @@ package com.chapchap.subscription.domain.subscription.service;
 
 import com.chapchap.subscription.domain.address.entity.Address;
 import com.chapchap.subscription.domain.address.repository.AddressRepository;
+import com.chapchap.subscription.domain.order.entity.Order;
+import com.chapchap.subscription.domain.order.repository.OrderRepository;
 import com.chapchap.subscription.domain.payment.client.AutomaticPaymentClient;
+import com.chapchap.subscription.domain.payment.client.AutomaticPaymentRequest;
 import com.chapchap.subscription.domain.payment.client.AutomaticPaymentResult;
 import com.chapchap.subscription.domain.payment.entity.PaymentMethod;
 import com.chapchap.subscription.domain.payment.entity.PaymentProviderCode;
@@ -29,6 +32,7 @@ import com.chapchap.subscription.domain.terms.repository.TermsRepository;
 import com.chapchap.subscription.domain.terms.repository.UserTermsAgreementRepository;
 import com.chapchap.subscription.global.kafka.auth.AuthSubscriptionStatusPublisher;
 import com.chapchap.subscription.global.kafka.customer.CustomerPaymentEventPublisher;
+import com.chapchap.subscription.global.exception.payment.PaymentDeclinedException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,8 +57,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -73,6 +78,7 @@ class FirstSubscriptionConcurrencyIntegrationTest {
     @Autowired private PaymentTransactionRepository paymentTransactionRepository;
     @Autowired private SubscriptionRepository subscriptionRepository;
     @Autowired private SubscriptionPeriodRepository subscriptionPeriodRepository;
+    @Autowired private OrderRepository orderRepository;
     @Autowired private BillingKeyProtector billingKeyProtector;
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -168,7 +174,7 @@ class FirstSubscriptionConcurrencyIntegrationTest {
         CountDownLatch processingResponseReturned = new CountDownLatch(1);
         AtomicInteger providerCallCount = new AtomicInteger();
 
-        when(automaticPaymentClient.pay(any())).thenAnswer(invocation -> {
+        doAnswer(invocation -> {
             providerCallCount.incrementAndGet();
             providerEntered.countDown();
             assertThat(releaseProvider.await(CONCURRENCY_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
@@ -177,7 +183,7 @@ class FirstSubscriptionConcurrencyIntegrationTest {
                 com.chapchap.subscription.domain.payment.client.AutomaticPaymentRequest.class
             ).externalPaymentId();
             return AutomaticPaymentResult.success(externalPaymentId, "test-transaction", "PAID");
-        });
+        }).when(automaticPaymentClient).pay(any());
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
@@ -243,6 +249,96 @@ class FirstSubscriptionConcurrencyIntegrationTest {
         ));
 
         assertThat(firstSubscriptionPreparationService.recoverConcurrentProcessing(userId)).isEmpty();
+    }
+
+    @Test
+    void 시작_전_취소한_구독을_같은_일정으로_재신청하면_기존_주문을_보존하고_새_순번을_사용한다() {
+        stubSuccessfulPayment("first-transaction");
+        firstSubscriptionService.subscribe(userId, request());
+        markCurrentSubscriptionCanceledBeforeStart();
+
+        stubSuccessfulPayment("reapplication-transaction");
+        FirstSubscriptionResponse response = firstSubscriptionService.subscribe(userId, request());
+
+        assertThat(response.subscriptionStatus()).isEqualTo(SubscriptionStatus.SCHEDULED);
+        assertReapplicationOrderHistory(2, 2, 2, "CANCELED_BEFORE_START", false);
+    }
+
+    @Test
+    void 시작_전_취소한_구독을_동시에_재신청해도_새_주문과_PG_호출은_한_세트만_생성한다() throws Exception {
+        stubSuccessfulPayment("first-transaction-before-concurrency");
+        firstSubscriptionService.subscribe(userId, request());
+        markCurrentSubscriptionCanceledBeforeStart();
+
+        CountDownLatch bothReady = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch providerEntered = new CountDownLatch(1);
+        CountDownLatch releaseProvider = new CountDownLatch(1);
+        CountDownLatch processingResponseReturned = new CountDownLatch(1);
+        AtomicInteger providerCallCount = new AtomicInteger();
+        doAnswer(invocation -> {
+            providerCallCount.incrementAndGet();
+            providerEntered.countDown();
+            assertThat(releaseProvider.await(CONCURRENCY_TIMEOUT_SECONDS * 3L, TimeUnit.SECONDS)).isTrue();
+            AutomaticPaymentRequest payment = invocation.getArgument(0, AutomaticPaymentRequest.class);
+            return AutomaticPaymentResult.success(
+                payment.externalPaymentId(),
+                "concurrent-reapplication-transaction",
+                "PAID"
+            );
+        }).when(automaticPaymentClient).pay(any());
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<FirstSubscriptionResponse> first = executor.submit(() -> subscribeConcurrently(
+                bothReady, start, processingResponseReturned
+            ));
+            Future<FirstSubscriptionResponse> second = executor.submit(() -> subscribeConcurrently(
+                bothReady, start, processingResponseReturned
+            ));
+
+            assertThat(bothReady.await(CONCURRENCY_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(providerEntered.await(CONCURRENCY_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
+            boolean processingReturnedBeforeCompletion =
+                processingResponseReturned.await(CONCURRENCY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            releaseProvider.countDown();
+
+            List<FirstSubscriptionResponse> responses = List.of(
+                first.get(CONCURRENCY_TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                second.get(CONCURRENCY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            );
+            assertThat(processingReturnedBeforeCompletion).isTrue();
+            assertThat(responses)
+                .extracting(FirstSubscriptionResponse::subscriptionStatus)
+                .containsExactlyInAnyOrder(
+                    SubscriptionStatus.SCHEDULED,
+                    SubscriptionStatus.AWAITING_CONFIRMATION
+                );
+            assertThat(providerCallCount).hasValue(1);
+            assertReapplicationOrderHistory(2, 2, 2, "CANCELED_BEFORE_START", false);
+        } finally {
+            start.countDown();
+            releaseProvider.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void 첫_결제_실패_후_같은_일정으로_재신청하면_새_순번으로_주문을_생성하고_첫_할인을_다시_적용한다() {
+        doAnswer(invocation -> {
+            AutomaticPaymentRequest payment = invocation.getArgument(0, AutomaticPaymentRequest.class);
+            return AutomaticPaymentResult.declined(payment.externalPaymentId(), "DECLINED", "테스트 결제 거절");
+        }).when(automaticPaymentClient).pay(any());
+
+        assertThatThrownBy(() -> firstSubscriptionService.subscribe(userId, request()))
+            .isInstanceOf(PaymentDeclinedException.class);
+
+        stubSuccessfulPayment("reapplication-after-failure");
+        FirstSubscriptionResponse response = firstSubscriptionService.subscribe(userId, request());
+
+        assertThat(response.subscriptionStatus()).isEqualTo(SubscriptionStatus.SCHEDULED);
+        assertReapplicationOrderHistory(2, 2, 2, "PAYMENT_FAILED", true);
     }
 
     private FirstSubscriptionResponse subscribeConcurrently(
@@ -331,6 +427,102 @@ class FirstSubscriptionConcurrencyIntegrationTest {
         );
     }
 
+    private void stubSuccessfulPayment(String transactionReference) {
+        doAnswer(invocation -> {
+            AutomaticPaymentRequest payment = invocation.getArgument(0, AutomaticPaymentRequest.class);
+            return AutomaticPaymentResult.success(
+                payment.externalPaymentId(),
+                transactionReference,
+                "PAID"
+            );
+        }).when(automaticPaymentClient).pay(any());
+    }
+
+    private void markCurrentSubscriptionCanceledBeforeStart() {
+        Subscription subscription = subscriptionRepository.findByUserId(userId).orElseThrow();
+        SubscriptionPeriod period = subscriptionPeriodRepository
+            .findTopBySubscriptionIdOrderByPeriodSequenceDesc(subscription.getId())
+            .orElseThrow();
+        List<Order> orders = orderRepository.findAllBySubscriptionPeriodId(period.getId());
+        LocalDateTime canceledAt = LocalDateTime.now();
+
+        subscription.cancelBeforeStart(canceledAt);
+        period.cancelBeforeStart(canceledAt, "REAPPLICATION_REVISION_TEST");
+        orders.forEach(Order::cancelBeforeStart);
+
+        subscriptionRepository.saveAndFlush(subscription);
+        subscriptionPeriodRepository.saveAndFlush(period);
+        orderRepository.saveAllAndFlush(orders);
+    }
+
+    private void assertReapplicationOrderHistory(
+        int expectedPeriodCount,
+        int expectedSettingCount,
+        int expectedPaymentCount,
+        String expectedHistoricalOrderStatus,
+        boolean firstDiscountExpectedOnBothAttempts
+    ) {
+        Long subscriptionId = jdbcTemplate.queryForObject(
+            "SELECT id FROM subscriptions WHERE user_id = ?",
+            Long.class,
+            userId
+        );
+        assertThat(subscriptionId).isNotNull();
+        assertThat(count("SELECT COUNT(*) FROM subscription_periods WHERE subscription_id = ?", subscriptionId))
+            .isEqualTo(expectedPeriodCount);
+        assertThat(count("SELECT COUNT(*) FROM subscription_settings WHERE subscription_id = ?", subscriptionId))
+            .isEqualTo(expectedSettingCount);
+        assertThat(count("SELECT COUNT(*) FROM payment_transactions WHERE subscription_id = ?", subscriptionId))
+            .isEqualTo(expectedPaymentCount);
+        Long maxPeriodSequence = jdbcTemplate.queryForObject(
+            "SELECT MAX(period_sequence) FROM subscription_periods WHERE subscription_id = ?",
+            Long.class,
+            subscriptionId
+        );
+        Long maxSettingSequence = jdbcTemplate.queryForObject(
+            "SELECT MAX(setting_sequence) FROM subscription_settings WHERE subscription_id = ?",
+            Long.class,
+            subscriptionId
+        );
+        assertThat(maxPeriodSequence).isEqualTo(2L);
+        assertThat(maxSettingSequence).isEqualTo(2L);
+
+        long firstRevisionCount = count(
+            "SELECT COUNT(*) FROM orders WHERE subscription_id = ? AND revision_sequence = 1",
+            subscriptionId
+        );
+        long secondRevisionCount = count(
+            "SELECT COUNT(*) FROM orders WHERE subscription_id = ? AND revision_sequence = 2",
+            subscriptionId
+        );
+        assertThat(firstRevisionCount).isPositive();
+        assertThat(secondRevisionCount).isEqualTo(firstRevisionCount);
+        assertThat(count(
+            "SELECT COUNT(*) FROM ("
+                + "SELECT delivery_date FROM orders WHERE subscription_id = ? GROUP BY delivery_date "
+                + "HAVING COUNT(*) = 2 AND MIN(revision_sequence) = 1 AND MAX(revision_sequence) = 2"
+                + ") revision_pairs",
+            subscriptionId
+        )).isEqualTo(firstRevisionCount);
+        assertThat(count(
+            "SELECT COUNT(*) FROM orders WHERE subscription_id = ? AND revision_sequence = 1 AND status = ?",
+            subscriptionId,
+            expectedHistoricalOrderStatus
+        )).isEqualTo(firstRevisionCount);
+        assertThat(count(
+            "SELECT COUNT(*) FROM orders WHERE subscription_id = ? AND revision_sequence = 2 AND status = 'ACTIVE'",
+            subscriptionId
+        )).isEqualTo(secondRevisionCount);
+        assertThat(count(
+            "SELECT COUNT(*) FROM orders WHERE subscription_id = ? AND replacement_target_order_id IS NOT NULL",
+            subscriptionId
+        )).isZero();
+        assertThat(count(
+            "SELECT COUNT(*) FROM orders WHERE subscription_id = ? AND discount_amount > 0",
+            subscriptionId
+        )).isEqualTo(firstDiscountExpectedOnBothAttempts ? firstRevisionCount * 2 : firstRevisionCount);
+    }
+
     private Plan plan(String fixtureSuffix) {
         Plan plan = BeanUtils.instantiateClass(Plan.class);
         planPublicId = UUID.randomUUID().toString();
@@ -358,8 +550,8 @@ class FirstSubscriptionConcurrencyIntegrationTest {
         return menus;
     }
 
-    private long count(String sql, Object parameter) {
-        Long value = jdbcTemplate.queryForObject(sql, Long.class, parameter);
+    private long count(String sql, Object... parameters) {
+        Long value = jdbcTemplate.queryForObject(sql, Long.class, parameters);
         return value == null ? 0L : value;
     }
 

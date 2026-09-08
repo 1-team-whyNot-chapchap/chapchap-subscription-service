@@ -94,6 +94,7 @@ class OrderRepositoryIntegrationTest {
             .addressId(uniquePositiveId())
             .menuId(uniquePositiveId())
             .deliveryDate(deliveryDate)
+            .revisionSequence(1)
             .planName("통합 테스트 플랜")
             .menuName("통합 테스트 메뉴")
             .mealUnitPrice(8_900L)
