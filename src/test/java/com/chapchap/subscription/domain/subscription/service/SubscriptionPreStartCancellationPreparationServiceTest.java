@@ -27,6 +27,34 @@ class SubscriptionPreStartCancellationPreparationServiceTest {
     }
 
     @Test
+    void 재신청_기간은_순번이_2이상이어도_시작취소를_준비한다() {
+        SubscriptionRepository subscriptions=mock(SubscriptionRepository.class); SubscriptionPeriodRepository periods=mock(SubscriptionPeriodRepository.class); PaymentTransactionRepository payments=mock(PaymentTransactionRepository.class); OrderRepository orders=mock(OrderRepository.class); KstReferenceTimeProvider time=mock(KstReferenceTimeProvider.class);
+        SubscriptionPreStartCancellationPreparationService service=new SubscriptionPreStartCancellationPreparationService(subscriptions,periods,payments,orders,time);
+        Subscription subscription=Subscription.create(10L); ReflectionTestUtils.setField(subscription,"id",1L); subscription.markScheduled();
+        SubscriptionPeriod period=SubscriptionPeriod.createAwaitingConfirmation(1L,2,LocalDate.of(2026,9,10),LocalDateTime.now()); period.markScheduled(); ReflectionTestUtils.setField(period,"id",2L);
+        when(subscriptions.findWithLockByUserId(10L)).thenReturn(Optional.of(subscription)); when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(1L,SubscriptionPeriodStatus.SCHEDULED)).thenReturn(Optional.of(period)); when(time.now()).thenReturn(LocalDateTime.of(2026,9,9,13,59,59)); when(orders.findAllBySubscriptionPeriodId(2L)).thenReturn(List.of());
+
+        SubscriptionCancellationPreparation result=service.prepare(10L);
+
+        assertThat(result.cancellationType()).isEqualTo(SubscriptionCancellationType.CANCELLATION_BEFORE_START);
+        assertThat(result.targetPeriodId()).isEqualTo(2L);
+    }
+
+    @Test
+    void 이용중_구독의_다음_시작예정_기간은_다음기간_전액취소를_준비한다() {
+        SubscriptionRepository subscriptions=mock(SubscriptionRepository.class); SubscriptionPeriodRepository periods=mock(SubscriptionPeriodRepository.class); PaymentTransactionRepository payments=mock(PaymentTransactionRepository.class); OrderRepository orders=mock(OrderRepository.class); KstReferenceTimeProvider time=mock(KstReferenceTimeProvider.class);
+        SubscriptionPreStartCancellationPreparationService service=new SubscriptionPreStartCancellationPreparationService(subscriptions,periods,payments,orders,time);
+        Subscription subscription=Subscription.create(10L); ReflectionTestUtils.setField(subscription,"id",1L); subscription.markScheduled(); subscription.startFirstPeriod();
+        SubscriptionPeriod period=SubscriptionPeriod.createAwaitingConfirmation(1L,2,LocalDate.of(2026,9,10),LocalDateTime.now()); period.markScheduled(); ReflectionTestUtils.setField(period,"id",2L);
+        when(subscriptions.findWithLockByUserId(10L)).thenReturn(Optional.of(subscription)); when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(1L,SubscriptionPeriodStatus.SCHEDULED)).thenReturn(Optional.of(period)); when(time.now()).thenReturn(LocalDateTime.of(2026,9,9,13,59,59)); when(orders.findAllBySubscriptionPeriodId(2L)).thenReturn(List.of());
+
+        SubscriptionCancellationPreparation result=service.prepare(10L);
+
+        assertThat(result.cancellationType()).isEqualTo(SubscriptionCancellationType.NEXT_PERIOD_FULL_CANCELLATION);
+        assertThat(result.targetPeriodId()).isEqualTo(2L);
+    }
+
+    @Test
     void 시작전날_14시부터는_시작취소를_차단한다() {
         SubscriptionRepository subscriptions=mock(SubscriptionRepository.class); SubscriptionPeriodRepository periods=mock(SubscriptionPeriodRepository.class); KstReferenceTimeProvider time=mock(KstReferenceTimeProvider.class);
         SubscriptionPreStartCancellationPreparationService service=new SubscriptionPreStartCancellationPreparationService(subscriptions,periods,mock(PaymentTransactionRepository.class),mock(OrderRepository.class),time);

@@ -19,6 +19,7 @@ import com.chapchap.subscription.domain.subscription.entity.Menu;
 import com.chapchap.subscription.domain.subscription.entity.Plan;
 import com.chapchap.subscription.domain.subscription.entity.Subscription;
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionPeriod;
+import com.chapchap.subscription.domain.subscription.entity.SubscriptionPeriodStatus;
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionStatus;
 import com.chapchap.subscription.domain.subscription.repository.MenuRepository;
 import com.chapchap.subscription.domain.subscription.repository.PlanRepository;
@@ -69,6 +70,7 @@ class FirstSubscriptionConcurrencyIntegrationTest {
 
     @Autowired private FirstSubscriptionService firstSubscriptionService;
     @Autowired private FirstSubscriptionPreparationService firstSubscriptionPreparationService;
+    @Autowired private SubscriptionPreStartCancellationPreparationService preStartCancellationPreparationService;
     @Autowired private PlanRepository planRepository;
     @Autowired private MenuRepository menuRepository;
     @Autowired private AddressRepository addressRepository;
@@ -262,6 +264,18 @@ class FirstSubscriptionConcurrencyIntegrationTest {
 
         assertThat(response.subscriptionStatus()).isEqualTo(SubscriptionStatus.SCHEDULED);
         assertReapplicationOrderHistory(2, 2, 2, "CANCELED_BEFORE_START", false);
+        SubscriptionCancellationPreparation cancellation = preStartCancellationPreparationService.prepare(userId);
+        assertThat(cancellation.cancellationType())
+            .isEqualTo(SubscriptionCancellationType.CANCELLATION_BEFORE_START);
+        assertThat(cancellation.targetPeriodId()).isEqualTo(
+            subscriptionPeriodRepository
+                .findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(
+                    subscriptionRepository.findByUserId(userId).orElseThrow().getId(),
+                    SubscriptionPeriodStatus.SCHEDULED
+                )
+                .orElseThrow()
+                .getId()
+        );
     }
 
     @Test
