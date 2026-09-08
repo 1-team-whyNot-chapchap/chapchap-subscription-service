@@ -215,6 +215,7 @@ public class Order {
      * @param addressId 배송지 식별자
      * @param menuId 메뉴 식별자
      * @param deliveryDate 실제 배송일
+     * @param revisionSequence 같은 구독·배송일 내 생성 순번
      * @param planName 플랜명 스냅샷
      * @param menuName 메뉴명 스냅샷
      * @param mealUnitPrice 도시락 한 개 가격
@@ -245,6 +246,7 @@ public class Order {
         Long addressId,
         Long menuId,
         LocalDate deliveryDate,
+        int revisionSequence,
         String planName,
         String menuName,
         Long mealUnitPrice,
@@ -274,7 +276,7 @@ public class Order {
         order.addressId = requirePositive(addressId, "addressId");
         order.menuId = requirePositive(menuId, "menuId");
         order.deliveryDate = requireNonNull(deliveryDate, "deliveryDate");
-        order.revisionSequence = 1;
+        order.revisionSequence = requirePositive(revisionSequence, "revisionSequence");
         order.status = OrderStatus.AWAITING_CONFIRMATION;
         order.kafkaDeliveryStatus = OrderKafkaDeliveryStatus.NOT_SENT;
         order.planName = requireText(planName, "planName");
@@ -340,7 +342,7 @@ public class Order {
         }
         Order order = createAwaitingConfirmation(
             userId, subscriptionId, subscriptionPeriodId, subscriptionSettingId, termsAgreementId, planId, addressId,
-            menuId, deliveryDate, planName, menuName, mealUnitPrice, mealQuantity, mealAmount, deliveryFee,
+            menuId, deliveryDate, revisionSequence, planName, menuName, mealUnitPrice, mealQuantity, mealAmount, deliveryFee,
             discountAmount, actualAllocatedAmount, recipientName, recipientPhone, postalCode, addressLine1,
             addressLine2, deliveryMethodCode, otherDeliveryRequest, entrancePassword, deliveryTimeSlot
         );
@@ -493,6 +495,13 @@ public class Order {
 
     private static Long requirePositive(Long value, String fieldName) {
         if (value == null || value <= 0) {
+            throw new IllegalArgumentException(fieldName + " must be positive");
+        }
+        return value;
+    }
+
+    private static int requirePositive(int value, String fieldName) {
+        if (value <= 0) {
             throw new IllegalArgumentException(fieldName + " must be positive");
         }
         return value;

@@ -84,7 +84,7 @@ class DeliveryOrderPublisherServiceTest {
 
     private Order activeOrder() {
         Order order = Order.createAwaitingConfirmation(
-            10L, 1L, 2L, 3L, 5L, 6L, 4L, 7L, LocalDate.of(2026, 9, 8), "플랜", "메뉴",
+            10L, 1L, 2L, 3L, 5L, 6L, 4L, 7L, LocalDate.of(2026, 9, 8), 1, "플랜", "메뉴",
             8_900L, 2, 17_800L, 0L, 0L, 17_800L, "홍길동", "010-0000-0000", "41911",
             "대구광역시 중구 국채보상로 1", "101동 1001호", "DOORSTEP", null, "7003", OrderDeliveryTimeSlot.TIME_1100_1300
         );

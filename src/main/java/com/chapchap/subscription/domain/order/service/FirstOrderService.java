@@ -105,6 +105,7 @@ public class FirstOrderService {
             Math.addExact(mealAmount, DELIVERY_FEE),
             discountAmount
         );
+        int revisionSequence = nextRevisionSequence(command.subscriptionId(), delivery.deliveryDate());
 
         return Order.awaitingConfirmationBuilder()
             .userId(command.userId())
@@ -116,6 +117,7 @@ public class FirstOrderService {
             .addressId(address.addressId())
             .menuId(delivery.menuId())
             .deliveryDate(delivery.deliveryDate())
+            .revisionSequence(revisionSequence)
             .planName(plan.planName())
             .menuName(delivery.menuName())
             .mealUnitPrice(plan.mealUnitPrice())
@@ -134,6 +136,13 @@ public class FirstOrderService {
             .entrancePassword(address.entrancePassword())
             .deliveryTimeSlot(delivery.deliveryTimeSlot())
             .build();
+    }
+
+    private int nextRevisionSequence(Long subscriptionId, LocalDate deliveryDate) {
+        return orderRepository
+            .findTopBySubscriptionIdAndDeliveryDateOrderByRevisionSequenceDesc(subscriptionId, deliveryDate)
+            .map(order -> Math.incrementExact(order.getRevisionSequence()))
+            .orElse(1);
     }
 
     private void validateDeliveries(FirstOrderPreparationCommand command) {

@@ -100,7 +100,7 @@ class DeliveryRefundIntegrationTest {
         long unique = uniqueId();
         Order order = Order.createAwaitingConfirmation(
             10L, unique, uniqueId(), uniqueId(), uniqueId(), uniqueId(), uniqueId(), uniqueId(),
-            LocalDate.of(2026, 9, 8), "통합 테스트 플랜", "통합 테스트 메뉴",
+            LocalDate.of(2026, 9, 8), 1, "통합 테스트 플랜", "통합 테스트 메뉴",
             4_000L, 2, 8_000L, 0L, 0L, 8_000L,
             "테스트 고객", "010-0000-0000", "41911", "테스트 주소", null,
             "DOORSTEP", null, null, OrderDeliveryTimeSlot.TIME_1100_1300);

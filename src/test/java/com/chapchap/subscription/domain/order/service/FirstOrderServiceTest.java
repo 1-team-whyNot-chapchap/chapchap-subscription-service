@@ -17,6 +17,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -63,9 +64,56 @@ class FirstOrderServiceTest {
         assertThat(firstOrder.getDeliveryFee()).isEqualTo(3_000L);
         assertThat(firstOrder.getDiscountAmount()).isEqualTo(2_670L);
         assertThat(firstOrder.getActualAllocatedAmount()).isEqualTo(18_130L);
+        assertThat(firstOrder.getRevisionSequence()).isEqualTo(1);
+        assertThat(firstOrder.getReplacementTargetOrderId()).isNull();
         assertThat(firstOrder.getStatus()).isEqualTo(OrderStatus.AWAITING_CONFIRMATION);
         assertThat(firstOrder.getKafkaDeliveryStatus()).isEqualTo(OrderKafkaDeliveryStatus.NOT_SENT);
         assertThat(PublicIdFormat.isUuidV4(firstOrder.getPublicId())).isTrue();
+    }
+
+    @Test
+    void 같은_구독과_배송일의_기존_최대_순번이_1이면_재신청_주문은_2로_생성한다() {
+        LocalDate deliveryDate = LocalDate.of(2026, 9, 7);
+        FirstOrderPreparationCommand command = command(
+            false,
+            deliveries(delivery(deliveryDate, 7, 1))
+        );
+        Order previousOrder = awaitingOrder();
+        when(orderRepository.existsBySubscriptionPeriodId(30L)).thenReturn(false);
+        when(orderRepository.findTopBySubscriptionIdAndDeliveryDateOrderByRevisionSequenceDesc(20L, deliveryDate))
+            .thenReturn(Optional.of(previousOrder));
+        assignIdsWhenSaved();
+
+        service.prepare(command);
+
+        ArgumentCaptor<List<Order>> captor = orderListCaptor();
+        verify(orderRepository).saveAll(captor.capture());
+        Order reapplicationOrder = captor.getValue().getFirst();
+        assertThat(reapplicationOrder.getRevisionSequence()).isEqualTo(2);
+        assertThat(reapplicationOrder.getReplacementTargetOrderId()).isNull();
+        assertThat(previousOrder.getRevisionSequence()).isEqualTo(1);
+    }
+
+    @Test
+    void 같은_구독과_배송일의_기존_최대_순번이_2이면_재신청_주문은_3으로_생성한다() {
+        LocalDate deliveryDate = LocalDate.of(2026, 9, 7);
+        FirstOrderPreparationCommand command = command(
+            false,
+            deliveries(delivery(deliveryDate, 7, 1))
+        );
+        Order previousOrder = awaitingOrder();
+        ReflectionTestUtils.setField(previousOrder, "revisionSequence", 2);
+        when(orderRepository.existsBySubscriptionPeriodId(30L)).thenReturn(false);
+        when(orderRepository.findTopBySubscriptionIdAndDeliveryDateOrderByRevisionSequenceDesc(20L, deliveryDate))
+            .thenReturn(Optional.of(previousOrder));
+        assignIdsWhenSaved();
+
+        service.prepare(command);
+
+        ArgumentCaptor<List<Order>> captor = orderListCaptor();
+        verify(orderRepository).saveAll(captor.capture());
+        assertThat(captor.getValue().getFirst().getRevisionSequence()).isEqualTo(3);
+        assertThat(previousOrder.getRevisionSequence()).isEqualTo(2);
     }
 
     @Test
@@ -480,6 +528,7 @@ class FirstOrderServiceTest {
             .addressId(address.addressId())
             .menuId(delivery.menuId())
             .deliveryDate(delivery.deliveryDate())
+            .revisionSequence(1)
             .planName(plan.planName())
             .menuName(delivery.menuName())
             .mealUnitPrice(plan.mealUnitPrice())

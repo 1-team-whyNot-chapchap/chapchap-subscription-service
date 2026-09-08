@@ -26,6 +26,7 @@ import com.chapchap.subscription.domain.terms.service.TermsService;
 import com.chapchap.subscription.global.exception.subscription.PlanNotFoundException;
 import com.chapchap.subscription.global.exception.subscription.SubscriptionAlreadyActiveException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -103,10 +104,10 @@ public class FirstSubscriptionPreparationService {
     /**
      * 기존 PROCESSING 요청은 멱등 결과를 반환하고, 신규 요청은 모든 사전 데이터를 함께 저장한다.
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public PreparedFirstSubscription prepare(Long userId, FirstSubscriptionRequest request) {
         LocalDateTime referenceAt = timeProvider.now();
-        Subscription existing = subscriptionRepository.findByUserId(userId).orElse(null);
+        Subscription existing = findExistingWithLock(userId);
         PreparedFirstSubscription processing = findExistingProcessing(existing);
         if (processing != null) {
             return processing;
@@ -212,6 +213,14 @@ public class FirstSubscriptionPreparationService {
             subscription.getId(), subscription.getPublicId(), period.getId(),
             period.getPeriodStartDate(), period.getPeriodEndDate(), payment.getId()
         );
+    }
+
+    private Subscription findExistingWithLock(Long userId) {
+        if (!subscriptionRepository.existsByUserId(userId)) {
+            return null;
+        }
+        return subscriptionRepository.findWithLockByUserId(userId)
+            .orElseThrow(() -> new IllegalStateException("Existing subscription disappeared before lock acquisition"));
     }
 
     private void rejectActive(Subscription subscription) {
