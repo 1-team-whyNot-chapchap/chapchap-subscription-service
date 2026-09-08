@@ -57,7 +57,7 @@ public class SubscriptionPreStartCancellationPreparationService {
     }
 
     private SubscriptionCancellationType cancellationType(Subscription subscription, SubscriptionPeriod target) {
-        if (subscription.getStatus() == SubscriptionStatus.SCHEDULED && target.getPeriodSequence() == 1) return SubscriptionCancellationType.CANCELLATION_BEFORE_START;
+        if (subscription.getStatus() == SubscriptionStatus.SCHEDULED) return SubscriptionCancellationType.CANCELLATION_BEFORE_START;
         if (subscription.getStatus() == SubscriptionStatus.IN_PROGRESS) return SubscriptionCancellationType.NEXT_PERIOD_FULL_CANCELLATION;
         throw new SubscriptionCancellationNotAllowedException();
     }
