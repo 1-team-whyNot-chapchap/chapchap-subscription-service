@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: subscription-service
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+    defer-datasource-initialization: false
+  sql:
+    init:
+      mode: never
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        enable.idempotence: true
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+server:
+  port: ${APP_PORT}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+portone:
+  api:
+    base-url: ${PORTONE_API_BASE_URL}
+    secret: ${PORTONE_API_SECRET}
+
+payment:
+  billing-key:
+    encryption-key: ${PAYMENT_BILLING_KEY_ENCRYPTION_KEY}
+
+app:
+  kafka:
+    delivery-order:
+      topic: ${KAFKA_TOPIC_SUBSCRIPTION_DELIVERY_ORDER}
+      send-timeout: ${KAFKA_DELIVERY_ORDER_SEND_TIMEOUT}
+    auth-subscription-status:
+      topic: ${KAFKA_TOPIC_SUBSCRIPTION_AUTH_STATUS}
+    customer-delivery-address:
+      topic: ${KAFKA_TOPIC_CUSTOMER_DELIVERY_ADDRESS}
+    customer-payment:
+      topic: ${KAFKA_TOPIC_CUSTOMER_PAYMENT}
+    customer-refund:
+      topic: ${KAFKA_TOPIC_CUSTOMER_REFUND}
+    customer-subscription-notification:
+      topic: ${KAFKA_TOPIC_CUSTOMER_SUBSCRIPTION_NOTIFICATION}
+    delivery-refund:
+      topic: ${KAFKA_TOPIC_DELIVERY_REFUND}
+      dlt-topic: ${KAFKA_TOPIC_DELIVERY_REFUND_DLT}
+      group-id: ${KAFKA_CONSUMER_GROUP_DELIVERY_REFUND}
