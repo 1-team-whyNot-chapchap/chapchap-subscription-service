@@ -2,9 +2,6 @@ spring:
   application:
     name: subscription-service
 
-  profiles:
-    default: local
-
   config:
     import: optional:file:.env[.properties]
 

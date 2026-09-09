@@ -1,10 +1,9 @@
 spring:
   datasource:
-    url: ${TEST_DB_URL:jdbc:mysql://localhost:3307/chapchap_subscription_test?createDatabaseIfNotExist=true&serverTimezone=Asia/Seoul}
-    username: ${TEST_DB_USERNAME:${DB_USERNAME}}
-    password: ${TEST_DB_PASSWORD:${DB_PASSWORD}}
+    url: jdbc:mysql://localhost:3307/chapchap_subscription_test?createDatabaseIfNotExist=true&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-
   jpa:
     hibernate:
       ddl-auto: create-drop
