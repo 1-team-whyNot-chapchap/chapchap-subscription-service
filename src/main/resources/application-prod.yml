@@ -69,3 +69,16 @@ app:
       topic: ${KAFKA_TOPIC_DELIVERY_REFUND}
       dlt-topic: ${KAFKA_TOPIC_DELIVERY_REFUND_DLT}
       group-id: ${KAFKA_CONSUMER_GROUP_DELIVERY_REFUND}
+
+# Springdoc Openapi
+springdoc:
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  swagger-ui:
+    enabled: false
+  api-docs:
+    path: /api-docs
+  open-api:
+    servers:
+      - url: ${GATEWAY_URI}
+        description: ${APP_DESCRIPTION}
