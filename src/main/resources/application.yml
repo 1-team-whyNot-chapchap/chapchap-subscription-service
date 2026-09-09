@@ -1,3 +1,61 @@
 spring:
   application:
     name: subscription-service
+
+  profiles:
+    default: local
+
+  config:
+    import: optional:file:.env[.properties]
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        enable.idempotence: true
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+server:
+  port: ${APP_PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+portone:
+  api:
+    base-url: ${PORTONE_API_BASE_URL:https://api.portone.io}
+    secret: ${PORTONE_API_SECRET}
+
+payment:
+  billing-key:
+    encryption-key: ${PAYMENT_BILLING_KEY_ENCRYPTION_KEY}
+
+app:
+  kafka:
+    delivery-order:
+      topic: ${KAFKA_TOPIC_SUBSCRIPTION_DELIVERY_ORDER:msa4-team1.subscription.delivery-orders.v1}
+      send-timeout: ${KAFKA_DELIVERY_ORDER_SEND_TIMEOUT:PT10S}
+    auth-subscription-status:
+      topic: ${KAFKA_TOPIC_SUBSCRIPTION_AUTH_STATUS:msa4-team1.subscription.subscription-events.v1}
+    customer-delivery-address:
+      topic: ${KAFKA_TOPIC_CUSTOMER_DELIVERY_ADDRESS:msa4-team1.subscription.delivery-address-events.v1}
+    customer-payment:
+      topic: ${KAFKA_TOPIC_CUSTOMER_PAYMENT:msa4-team1.subscription.payment-events.v1}
+    customer-refund:
+      topic: ${KAFKA_TOPIC_CUSTOMER_REFUND:msa4-team1.subscription.refund-events.v1}
+    customer-subscription-notification:
+      topic: ${KAFKA_TOPIC_CUSTOMER_SUBSCRIPTION_NOTIFICATION:msa4-team1.subscription.customer-notification-events.v1}
+    delivery-refund:
+      topic: ${KAFKA_TOPIC_DELIVERY_REFUND:msa4-team1.delivery.refund-events.v1}
+      dlt-topic: ${KAFKA_TOPIC_DELIVERY_REFUND_DLT:msa4-team1.delivery.refund-events.v1.DLT}
+      group-id: ${KAFKA_CONSUMER_GROUP_DELIVERY_REFUND:subscription-service-delivery-refund-group}

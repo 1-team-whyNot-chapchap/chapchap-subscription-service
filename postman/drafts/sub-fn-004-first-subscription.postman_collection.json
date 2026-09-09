@@ -1,0 +1,269 @@
+{
+  "info": {
+    "_postman_id": "d2a2b88d-989d-49b8-9aae-c0ef6771fb9f",
+    "name": "SUB-FN-004 First Subscription Draft",
+    "description": "첫 구독 API 통합 전 준비한 Draft Collection이다. 요청별 Description의 로컬 Fixture 또는 Mock 사전조건을 충족한 뒤 개별 실행한다.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 정상 첫 구독",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": \"{{testPlanId}}\",\n  \"deliveryConditions\": [\n    {\n      \"weekday\": \"MONDAY\",\n      \"mealQuantity\": 2,\n      \"addressId\": \"{{testAddressId}}\",\n      \"deliveryTimeSlot\": \"TIME_1100_1300\"\n    }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "사전조건: 구독 없음, 현재 필수 약관 동의, 선택 가능한 플랜·활성 배송지·현재 AVAILABLE 결제수단, 승인 응답을 주는 Provider. 실행 후 Subscription/Period=SCHEDULED, Setting/Order=ACTIVE, Payment=SUCCESS, 성공 Attempt와 Allocation을 DB에서 확인한다."
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.test('성공 공통 응답', () => { pm.expect(body.code).to.eql('00'); pm.expect(body.message).to.eql('SUCCESS'); });",
+            "pm.test('공개 구독 ID와 예정 상태', () => {",
+            "  pm.expect(body.data.subscriptionId).to.match(/^SUB-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+            "  pm.expect(body.data.subscriptionStatus).to.eql('SCHEDULED');",
+            "  pm.expect(body.data.periodStartDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/);",
+            "  pm.expect(body.data.periodEndDate).to.match(/^\\d{4}-\\d{2}-\\d{2}$/);",
+            "});"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "02 기존 PROCESSING 재요청",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": \"{{testPlanId}}\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"{{testAddressId}}\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "사전조건: 같은 고객의 첫 결제 거래 PROCESSING과 사전 데이터 AWAITING_CONFIRMATION. 새 데이터와 PG 호출 없이 기존 공개 ID·기간을 반환해야 한다."
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.test('처리 중 성공 응답', () => { pm.expect(body.code).to.eql('00'); pm.expect(body.message).to.eql('SUCCESS'); pm.expect(body.data.subscriptionStatus).to.eql('AWAITING_CONFIRMATION'); });",
+            "pm.test('공개 구독 ID', () => pm.expect(body.data.subscriptionId).to.match(/^SUB-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i));"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "03 미인증",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": \"00000000-0000-4000-8000-000000000000\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"00000000-0000-4000-8000-000000000000\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "인증 Header를 보내지 않는다. 빈 Environment Placeholder 때문에 Request Validation이 먼저 실패하지 않도록 문법상 유효한 고정 공개 ID를 사용한다. 어떤 업무 데이터도 생성되면 안 된다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));",
+        "const body = pm.response.json();",
+        "pm.test('AUTH_001', () => { pm.expect(body.code).to.eql('AUTH_001'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    },
+    {
+      "name": "04 필수 약관 미동의",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"planId\": \"11111111-1111-4111-8111-111111111111\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"00000000-0000-4000-8000-000000000000\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}", "options": { "raw": { "language": "json" } } },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "사전조건: 현재 필수 약관은 존재하지만 테스트 사용자의 동의 기록 없음. 빈 Environment Placeholder 때문에 Request Validation이 먼저 실패하지 않도록 문법상 유효한 고정 공개 ID를 사용한다. PG를 호출하지 않아야 한다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+        "const body = pm.response.json();",
+        "pm.test('TERMS_003', () => { pm.expect(body.code).to.eql('TERMS_003'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    },
+    {
+      "name": "05 플랜 없음",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"planId\": \"00000000-0000-4000-8000-000000000000\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"00000000-0000-4000-8000-000000000000\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}", "options": { "raw": { "language": "json" } } },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "사전조건: 문서상 형식은 유효하지만 DB에 없는 고정 플랜 공개 ID. PG를 호출하지 않아야 한다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+        "const body = pm.response.json();",
+        "pm.test('SUBSCRIPTION_001', () => { pm.expect(body.code).to.eql('SUBSCRIPTION_001'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    },
+    {
+      "name": "06 배송지 없음 또는 타인 소유",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"planId\": \"11111111-1111-4111-8111-111111111111\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"00000000-0000-4000-8000-000000000000\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}", "options": { "raw": { "language": "json" } } },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "기본값은 DB에 없는 배송지 ID다. 타인 소유 검증 시에는 로컬 전용 Environment에서 다른 고객의 실제 활성 배송지 공개 ID로 바꿔 같은 404를 확인한다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('404 Not Found', () => pm.response.to.have.status(404));",
+        "const body = pm.response.json();",
+        "pm.test('ADDRESS_001', () => { pm.expect(body.code).to.eql('ADDRESS_001'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    },
+    {
+      "name": "07 현재 자동결제수단 없음",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"planId\": \"{{testPlanId}}\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"{{testAddressId}}\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}", "options": { "raw": { "language": "json" } } },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "사전조건: 테스트 사용자에게 AVAILABLE이면서 현재 선택된 결제수단 없음. PG를 호출하지 않아야 한다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+        "const body = pm.response.json();",
+        "pm.test('PAYMENT_007', () => { pm.expect(body.code).to.eql('PAYMENT_007'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    },
+    {
+      "name": "08 진행 중 구독 존재",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"planId\": \"{{testPlanId}}\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"{{testAddressId}}\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}", "options": { "raw": { "language": "json" } } },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "사전조건: 테스트 사용자의 구독 상태가 SCHEDULED, IN_PROGRESS 또는 CANCELLATION_SCHEDULED. 상태별로 반복하고 PG 미호출을 확인한다. PROCESSING/AWAITING_CONFIRMATION은 이 요청이 아니라 02 시나리오 대상이다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+        "const body = pm.response.json();",
+        "pm.test('SUBSCRIPTION_002', () => { pm.expect(body.code).to.eql('SUBSCRIPTION_002'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    },
+    {
+      "name": "09 결제 거절",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"planId\": \"{{testPlanId}}\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"{{testAddressId}}\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}", "options": { "raw": { "language": "json" } } },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "사전조건: 명시적 카드 거절 또는 BillingKeyNotFound/AlreadyDeleted를 반환하는 제어 가능한 Mock·테스트 채널. DB는 PAYMENT_FAILED/FAILED와 실패 Attempt, Allocation 미생성을 확인한다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('409 Conflict', () => pm.response.to.have.status(409));",
+        "const body = pm.response.json();",
+        "pm.test('PAYMENT_008', () => { pm.expect(body.code).to.eql('PAYMENT_008'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    },
+    {
+      "name": "10 Provider 설정 오류",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"planId\": \"{{testPlanId}}\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"{{testAddressId}}\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}", "options": { "raw": { "language": "json" } } },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "사전조건: Provider 인증·권한·ChannelNotFound·서버 요청 구성 오류를 명시적으로 반환하는 Mock 또는 안전한 테스트 설정. 고객 인증 오류로 변환하면 안 된다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('500 Internal Server Error', () => pm.response.to.have.status(500));",
+        "const body = pm.response.json();",
+        "pm.test('PAYMENT_002', () => { pm.expect(body.code).to.eql('PAYMENT_002'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    },
+    {
+      "name": "11 Provider 결과 불명확",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"planId\": \"{{testPlanId}}\",\n  \"deliveryConditions\": [{\"weekday\": \"MONDAY\", \"mealQuantity\": 2, \"addressId\": \"{{testAddressId}}\", \"deliveryTimeSlot\": \"TIME_1100_1300\"}]\n}", "options": { "raw": { "language": "json" } } },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "사전조건: timeout·연결 실패·5xx·429·AlreadyPaid·파싱 실패·알 수 없는 상태 중 하나를 반환하는 제어 가능한 Mock. 최초 응답 후 PROCESSING/AWAITING_CONFIRMATION, Attempt·Allocation 미생성을 DB에서 확인하고 재요청은 02 시나리오로 PG 미호출을 확인한다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('502 Bad Gateway', () => pm.response.to.have.status(502));",
+        "const body = pm.response.json();",
+        "pm.test('PAYMENT_003', () => { pm.expect(body.code).to.eql('PAYMENT_003'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    },
+    {
+      "name": "12 요청 형식 오류",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+          { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": \"INVALID-PLAN-ID\",\n  \"deliveryConditions\": []\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/subscription/subscriptions",
+        "description": "문법상 잘못된 planId와 빈 배송 조건 목록으로 Request Validation을 확인한다. Service·DB·PG에 도달하면 안 된다."
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+        "const body = pm.response.json();",
+        "pm.test('COMMON_001', () => { pm.expect(body.code).to.eql('COMMON_001'); pm.expect(body.message).to.be.a('string').and.not.empty; });"
+      ] } }]
+    }
+  ]
+}

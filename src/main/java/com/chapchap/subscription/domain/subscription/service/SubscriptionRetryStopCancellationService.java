@@ -1,0 +1,46 @@
+package com.chapchap.subscription.domain.subscription.service;
+
+import com.chapchap.subscription.domain.order.repository.OrderRepository;
+import com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus;
+import com.chapchap.subscription.domain.payment.repository.PaymentTransactionRepository;
+import com.chapchap.subscription.domain.subscription.entity.SubscriptionPeriodStatus;
+import com.chapchap.subscription.domain.subscription.entity.SubscriptionStatus;
+import com.chapchap.subscription.domain.subscription.entity.SubscriptionStatusHistory;
+import com.chapchap.subscription.domain.subscription.repository.SubscriptionPeriodRepository;
+import com.chapchap.subscription.domain.subscription.repository.SubscriptionRepository;
+import com.chapchap.subscription.domain.subscription.repository.SubscriptionStatusHistoryRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.chapchap.subscription.global.exception.payment.PaymentTransactionProcessingException;
+import com.chapchap.subscription.global.exception.subscription.SubscriptionCancellationNotAllowedException;
+import com.chapchap.subscription.global.exception.subscription.SubscriptionNotFoundException;
+import com.chapchap.subscription.global.kafka.customer.CustomerPaymentEventPublisher;
+import com.chapchap.subscription.global.kafka.customer.CustomerSubscriptionNotificationPublisher;
+
+/** 09시 정기결제 실패 뒤 13시 전 고객 해지로 재시도를 중단한다. */
+@Service
+public class SubscriptionRetryStopCancellationService {
+    private final SubscriptionRepository subscriptions; private final SubscriptionPeriodRepository periods; private final PaymentTransactionRepository payments; private final OrderRepository orders; private final SubscriptionStatusHistoryRepository histories; private final KstReferenceTimeProvider time; private final CustomerPaymentEventPublisher customerPaymentPublisher; private final CustomerSubscriptionNotificationPublisher customerNotificationPublisher;
+    public SubscriptionRetryStopCancellationService(SubscriptionRepository subscriptions, SubscriptionPeriodRepository periods, PaymentTransactionRepository payments, OrderRepository orders, SubscriptionStatusHistoryRepository histories, KstReferenceTimeProvider time, CustomerPaymentEventPublisher customerPaymentPublisher, CustomerSubscriptionNotificationPublisher customerNotificationPublisher) { this.subscriptions=subscriptions; this.periods=periods; this.payments=payments; this.orders=orders; this.histories=histories; this.time=time; this.customerPaymentPublisher=customerPaymentPublisher; this.customerNotificationPublisher=customerNotificationPublisher; }
+    @Transactional
+    public void cancel(Long userId) {
+        var subscription = subscriptions.findWithLockByUserId(userId).orElseThrow(SubscriptionNotFoundException::new);
+        var now = time.now();
+        if (payments.existsBySubscriptionIdAndStatus(subscription.getId(), PaymentTransactionStatus.PROCESSING)) {
+            throw new PaymentTransactionProcessingException();
+        }
+        if (now.toLocalTime().compareTo(java.time.LocalTime.of(13, 0)) >= 0 || subscription.getStatus() != SubscriptionStatus.IN_PROGRESS) throw new SubscriptionCancellationNotAllowedException();
+        var transaction = payments.findTopWithLockBySubscriptionIdAndStatusOrderByOccurredAtDescIdDesc(
+            subscription.getId(), PaymentTransactionStatus.RETRY_WAITING
+        ).orElseThrow(SubscriptionCancellationNotAllowedException::new);
+        var period = periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(subscription.getId(), SubscriptionPeriodStatus.AWAITING_CONFIRMATION).orElseThrow(SubscriptionCancellationNotAllowedException::new);
+        if (!transaction.getSubscriptionPeriodId().equals(period.getId())) throw new SubscriptionCancellationNotAllowedException();
+        transaction.stopRetry(); period.cancelAwaitingRegularPayment(now, "REGULAR_PAYMENT_RETRY_CANCELLATION"); orders.findAllBySubscriptionPeriodId(period.getId()).forEach(order -> order.cancelAwaitingRegularPayment());
+        SubscriptionStatus previous = subscription.scheduleCancellation(now);
+        histories.save(SubscriptionStatusHistory.create(subscription.getId(), previous, SubscriptionStatus.CANCELLATION_SCHEDULED, "CUSTOMER", "REGULAR_PAYMENT_RETRY_STOPPED", now));
+        customerPaymentPublisher.publishRetryStoppedAfterCommit(transaction, now);
+        customerNotificationPublisher.publishNextPeriodCancellationAfterCommit(
+            subscription, "NOT_REQUIRED", now
+        );
+    }
+}

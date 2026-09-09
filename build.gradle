@@ -20,10 +20,60 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    implementation 'org.springframework.boot:spring-boot-starter-kafka'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    def deliveryRefundKafkaIntegration = System.getProperty('chapchap.delivery-refund-kafka-integration.enabled')
+    if (deliveryRefundKafkaIntegration != null) {
+        systemProperty 'chapchap.delivery-refund-kafka-integration.enabled', deliveryRefundKafkaIntegration
+    }
+}
+
+tasks.register('kafkaIntegrationTest', Test) {
+    description = 'Runs the Kafka broker integration tests against localhost:9092.'
+    group = 'verification'
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    dependsOn tasks.named('testClasses')
+
+    environment 'CHAPCHAP_KAFKA_INTEGRATION_ENABLED', 'true'
+    environment 'CHAPCHAP_CUSTOMER_KAFKA_INTEGRATION_ENABLED', 'true'
+    systemProperty 'chapchap.delivery-refund-kafka-integration.enabled', 'true'
+
+    filter {
+        includeTestsMatching 'com.chapchap.subscription.global.kafka.customer.CustomerKafkaBrokerIntegrationTest'
+        includeTestsMatching 'com.chapchap.subscription.global.kafka.delivery.DeliveryOrderKafkaBrokerIntegrationTest'
+        includeTestsMatching 'com.chapchap.subscription.global.kafka.delivery.DeliveryRefundKafkaBrokerIntegrationTest'
+    }
+
+    shouldRunAfter tasks.named('test')
 }
