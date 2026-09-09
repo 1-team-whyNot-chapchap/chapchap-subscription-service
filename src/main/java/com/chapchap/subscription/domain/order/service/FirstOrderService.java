@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 /** 첫 결제에 사용할 실제 배송일별 주문을 준비하고 결제 결과로 상태를 확정한다. */
 @Service
 public class FirstOrderService {
-    private static final long DELIVERY_FEE = 3_000L;
     private final OrderRepository orderRepository;
     private final HolidayRepository holidayRepository;
 
@@ -97,13 +96,8 @@ public class FirstOrderService {
     ) {
         FirstOrderPreparationCommand.PlanSnapshot plan = command.plan();
         FirstOrderPreparationCommand.AddressSnapshot address = delivery.address();
-        long mealAmount = Math.multiplyExact(plan.mealUnitPrice(), delivery.mealQuantity().longValue());
-        long discountAmount = command.applyFirstDiscount()
-            ? FirstSubscriptionDiscountCalculator.calculate(plan.mealUnitPrice())
-            : 0L;
-        long actualAllocatedAmount = Math.subtractExact(
-            Math.addExact(mealAmount, DELIVERY_FEE),
-            discountAmount
+        FirstOrderAmountCalculator.FirstOrderAmount amount = FirstOrderAmountCalculator.calculate(
+            plan.mealUnitPrice(), delivery.mealQuantity(), command.applyFirstDiscount()
         );
         int revisionSequence = nextRevisionSequence(command.subscriptionId(), delivery.deliveryDate());
 
@@ -122,10 +116,10 @@ public class FirstOrderService {
             .menuName(delivery.menuName())
             .mealUnitPrice(plan.mealUnitPrice())
             .mealQuantity(delivery.mealQuantity())
-            .mealAmount(mealAmount)
-            .deliveryFee(DELIVERY_FEE)
-            .discountAmount(discountAmount)
-            .actualAllocatedAmount(actualAllocatedAmount)
+            .mealAmount(amount.mealAmount())
+            .deliveryFee(amount.deliveryFee())
+            .discountAmount(amount.discountAmount())
+            .actualAllocatedAmount(amount.actualAllocatedAmount())
             .recipientName(address.recipientName())
             .recipientPhone(address.recipientPhone())
             .postalCode(address.postalCode())

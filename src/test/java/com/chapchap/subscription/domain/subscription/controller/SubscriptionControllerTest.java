@@ -1,12 +1,15 @@
 package com.chapchap.subscription.domain.subscription.controller;
 
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionStatus;
+import com.chapchap.subscription.domain.subscription.request.FirstSubscriptionRequest;
 import com.chapchap.subscription.domain.subscription.response.CurrentSubscriptionResponse;
+import com.chapchap.subscription.domain.subscription.response.FirstSubscriptionPreviewResponse;
 import com.chapchap.subscription.domain.subscription.response.SubscriptionCancellationResponse;
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionPeriodStatus;
 import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationType;
 import java.time.LocalDateTime;
 import com.chapchap.subscription.domain.subscription.service.CurrentSubscriptionQueryService;
+import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionPreparationService;
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
 import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationService;
 import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
@@ -24,10 +27,35 @@ import static org.mockito.Mockito.when;
 class SubscriptionControllerTest {
 
     @Test
+    void 인증_사용자_ID로_첫_구독_예상금액을_조회한다() {
+        FirstSubscriptionPreparationService preparationService = mock(FirstSubscriptionPreparationService.class);
+        SubscriptionController controller = new SubscriptionController(
+            mock(FirstSubscriptionService.class), preparationService,
+            mock(CurrentSubscriptionQueryService.class), mock(SubscriptionCancellationService.class),
+            mock(SettingChangeService.class)
+        );
+        Authentication authentication = mock(Authentication.class);
+        FirstSubscriptionRequest request = mock(FirstSubscriptionRequest.class);
+        FirstSubscriptionPreviewResponse expected = new FirstSubscriptionPreviewResponse(
+            java.time.LocalDate.of(2026, 9, 14), java.time.LocalDate.of(2026, 10, 11),
+            71_200L, 12_000L, 10_680L, 72_520L
+        );
+        when(authentication.getName()).thenReturn("10");
+        when(preparationService.preview(10L, request)).thenReturn(expected);
+
+        GlobalResponse<FirstSubscriptionPreviewResponse> response = controller.preview(authentication, request);
+
+        assertThat(response.code()).isEqualTo("00");
+        assertThat(response.data()).isSameAs(expected);
+        verify(preparationService).preview(10L, request);
+    }
+
+    @Test
     void 인증_사용자_ID로_구독_해지를_요청한다() {
         SubscriptionCancellationService cancellationService = mock(SubscriptionCancellationService.class);
         SubscriptionController controller = new SubscriptionController(
-            mock(FirstSubscriptionService.class), mock(CurrentSubscriptionQueryService.class), cancellationService,
+            mock(FirstSubscriptionService.class), mock(FirstSubscriptionPreparationService.class),
+            mock(CurrentSubscriptionQueryService.class), cancellationService,
             mock(SettingChangeService.class)
         );
         Authentication authentication = mock(Authentication.class);
@@ -53,6 +81,7 @@ class SubscriptionControllerTest {
         CurrentSubscriptionQueryService queryService = mock(CurrentSubscriptionQueryService.class);
         SubscriptionController controller = new SubscriptionController(
                 firstSubscriptionService,
+                mock(FirstSubscriptionPreparationService.class),
                 queryService,
                  mock(SubscriptionCancellationService.class),
                  mock(SettingChangeService.class)
@@ -84,6 +113,7 @@ class SubscriptionControllerTest {
         CurrentSubscriptionQueryService queryService = mock(CurrentSubscriptionQueryService.class);
         SubscriptionController controller = new SubscriptionController(
                 firstSubscriptionService,
+                mock(FirstSubscriptionPreparationService.class),
                 queryService,
                  mock(SubscriptionCancellationService.class),
                  mock(SettingChangeService.class)
