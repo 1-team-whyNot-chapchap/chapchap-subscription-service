@@ -68,6 +68,9 @@ class SubscriptionCancellationServiceTest {
         SubscriptionPeriod current = period(1, SubscriptionPeriodStatus.IN_PROGRESS);
         SubscriptionCancellationResponse expected = org.mockito.Mockito.mock(SubscriptionCancellationResponse.class);
         when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription));
+        when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(
+            1L, SubscriptionPeriodStatus.AWAITING_CONFIRMATION
+        )).thenReturn(Optional.empty());
         when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(1L, SubscriptionPeriodStatus.SCHEDULED))
             .thenReturn(Optional.empty());
         when(payments.findTopBySubscriptionIdAndStatusOrderByOccurredAtDescIdDesc(1L, PaymentTransactionStatus.RETRY_WAITING))
@@ -85,12 +88,13 @@ class SubscriptionCancellationServiceTest {
     @Test
     void 재시도대기_거래가_13시전이면_재시도중단을_우선한다() {
         Subscription subscription = inProgressSubscription();
-        SubscriptionPeriod scheduled = period(2, SubscriptionPeriodStatus.SCHEDULED);
+        SubscriptionPeriod awaitingConfirmation = period(2, SubscriptionPeriodStatus.AWAITING_CONFIRMATION);
         PaymentTransaction transaction = org.mockito.Mockito.mock(PaymentTransaction.class);
         when(transaction.getSubscriptionPeriodId()).thenReturn(12L);
         when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription));
-        when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(1L, SubscriptionPeriodStatus.SCHEDULED))
-            .thenReturn(Optional.of(scheduled));
+        when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(
+            1L, SubscriptionPeriodStatus.AWAITING_CONFIRMATION
+        )).thenReturn(Optional.of(awaitingConfirmation));
         when(payments.findTopBySubscriptionIdAndStatusOrderByOccurredAtDescIdDesc(1L, PaymentTransactionStatus.RETRY_WAITING))
             .thenReturn(Optional.of(transaction));
         when(time.now()).thenReturn(LocalDateTime.of(2026, 9, 6, 12, 59));
@@ -105,18 +109,53 @@ class SubscriptionCancellationServiceTest {
     @Test
     void 재시도대기_거래는_13시부터_일반해지로_우회하지_않는다() {
         Subscription subscription = inProgressSubscription();
-        SubscriptionPeriod scheduled = period(2, SubscriptionPeriodStatus.SCHEDULED);
+        SubscriptionPeriod awaitingConfirmation = period(2, SubscriptionPeriodStatus.AWAITING_CONFIRMATION);
         PaymentTransaction transaction = org.mockito.Mockito.mock(PaymentTransaction.class);
         when(transaction.getSubscriptionPeriodId()).thenReturn(12L);
         when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription));
-        when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(1L, SubscriptionPeriodStatus.SCHEDULED))
-            .thenReturn(Optional.of(scheduled));
+        when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(
+            1L, SubscriptionPeriodStatus.AWAITING_CONFIRMATION
+        )).thenReturn(Optional.of(awaitingConfirmation));
         when(payments.findTopBySubscriptionIdAndStatusOrderByOccurredAtDescIdDesc(1L, PaymentTransactionStatus.RETRY_WAITING))
             .thenReturn(Optional.of(transaction));
         when(time.now()).thenReturn(LocalDateTime.of(2026, 9, 6, 13, 0));
 
         assertThatThrownBy(() -> service.cancel(10L))
             .isInstanceOf(SubscriptionCancellationNotAllowedException.class);
+        verify(retry, never()).cancel(10L);
+        verify(regular, never()).cancelRegular(10L);
+    }
+
+    @Test
+    void 결제완료된_다음기간은_기존_전액취소환불_경로를_유지한다() {
+        Subscription subscription = inProgressSubscription();
+        SubscriptionPeriod scheduled = period(2, SubscriptionPeriodStatus.SCHEDULED);
+        SubscriptionCancellationPreparation prepared = new SubscriptionCancellationPreparation(
+            SubscriptionCancellationType.NEXT_PERIOD_FULL_CANCELLATION, 1L, 12L, List.of(20L),
+            LocalDateTime.of(2026, 9, 6, 12, 0)
+        );
+        SubscriptionCancellationResponse expected = org.mockito.Mockito.mock(SubscriptionCancellationResponse.class);
+        when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription));
+        when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(
+            1L, SubscriptionPeriodStatus.AWAITING_CONFIRMATION
+        )).thenReturn(Optional.empty());
+        when(payments.findTopBySubscriptionIdAndStatusOrderByOccurredAtDescIdDesc(1L, PaymentTransactionStatus.RETRY_WAITING))
+            .thenReturn(Optional.empty());
+        when(periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(1L, SubscriptionPeriodStatus.SCHEDULED))
+            .thenReturn(Optional.of(scheduled));
+        when(payments.existsBySubscriptionIdAndSubscriptionPeriodIdAndStatus(
+            1L, 12L, PaymentTransactionStatus.SUCCESS
+        )).thenReturn(true);
+        when(preStart.prepare(10L)).thenReturn(prepared);
+        when(refundPreparation.prepare(prepared)).thenReturn(
+            new PreparedPeriodRefund(30L, RefundStatus.REVIEW_REQUIRED, List.of())
+        );
+        when(responses.create(1L, 12L, SubscriptionCancellationType.NEXT_PERIOD_FULL_CANCELLATION,
+            prepared.referenceAt(), 30L)).thenReturn(expected);
+
+        assertThat(service.cancel(10L)).isSameAs(expected);
+
+        verify(preStart).prepare(10L);
         verify(retry, never()).cancel(10L);
         verify(regular, never()).cancelRegular(10L);
     }
@@ -181,7 +220,9 @@ class SubscriptionCancellationServiceTest {
             1L, sequence, LocalDate.of(2026, 9, 8).plusDays(sequence), LocalDateTime.now()
         );
         ReflectionTestUtils.setField(period, "id", 10L + sequence);
-        period.markScheduled();
+        if (status == SubscriptionPeriodStatus.SCHEDULED || status == SubscriptionPeriodStatus.IN_PROGRESS) {
+            period.markScheduled();
+        }
         if (status == SubscriptionPeriodStatus.IN_PROGRESS) period.start();
         return period;
     }

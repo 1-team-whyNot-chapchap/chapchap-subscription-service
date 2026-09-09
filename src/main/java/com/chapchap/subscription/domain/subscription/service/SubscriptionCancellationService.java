@@ -70,22 +70,26 @@ public class SubscriptionCancellationService {
             throw new SubscriptionCancellationNotAllowedException();
         }
 
-        var scheduled = periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(
-            subscription.getId(), SubscriptionPeriodStatus.SCHEDULED
+        var retryWaitingPeriod = periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(
+            subscription.getId(), SubscriptionPeriodStatus.AWAITING_CONFIRMATION
         );
         var retryWaiting = payments.findTopBySubscriptionIdAndStatusOrderByOccurredAtDescIdDesc(
             subscription.getId(), PaymentTransactionStatus.RETRY_WAITING
         );
-        if (scheduled.isPresent() && retryWaiting.isPresent()
-            && retryWaiting.get().getSubscriptionPeriodId().equals(scheduled.get().getId())) {
+        if (retryWaitingPeriod.isPresent() && retryWaiting.isPresent()
+            && retryWaiting.get().getSubscriptionPeriodId().equals(retryWaitingPeriod.get().getId())) {
             if (!time.now().toLocalTime().isBefore(LocalTime.of(13, 0))) {
                 throw new SubscriptionCancellationNotAllowedException();
             }
             retryStopCancellation.cancel(userId);
-            return responses.create(subscription.getId(), scheduled.get().getId(),
+            return responses.create(subscription.getId(), retryWaitingPeriod.get().getId(),
                 SubscriptionCancellationType.REGULAR_PAYMENT_RETRY_STOPPED,
                 subscriptions.findById(subscription.getId()).orElseThrow().getCancellationRequestedAt(), null);
         }
+
+        var scheduled = periods.findTopBySubscriptionIdAndStatusOrderByPeriodSequenceDesc(
+            subscription.getId(), SubscriptionPeriodStatus.SCHEDULED
+        );
         if (scheduled.isPresent() && hasCancelableAllocation(scheduled.get())) {
             return cancelPaidPeriod(userId);
         }
