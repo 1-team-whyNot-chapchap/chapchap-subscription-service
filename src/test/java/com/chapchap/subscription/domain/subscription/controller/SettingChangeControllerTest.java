@@ -4,6 +4,7 @@ import com.chapchap.subscription.domain.subscription.entity.SubscriptionSettingS
 import com.chapchap.subscription.domain.subscription.request.SettingChangeRequest;
 import com.chapchap.subscription.domain.subscription.response.SettingChangeResponse;
 import com.chapchap.subscription.domain.subscription.service.CurrentSubscriptionQueryService;
+import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionPreparationService;
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
 import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
 import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationService;
@@ -49,7 +50,8 @@ class SettingChangeControllerTest {
 
     private SubscriptionController controller(SettingChangeService service) {
         return new SubscriptionController(mock(FirstSubscriptionService.class),
-            mock(CurrentSubscriptionQueryService.class), mock(SubscriptionCancellationService.class), service);
+            mock(FirstSubscriptionPreparationService.class), mock(CurrentSubscriptionQueryService.class),
+            mock(SubscriptionCancellationService.class), service);
     }
 
     private SettingChangeResponse response(boolean confirmationRequired) {

@@ -5,6 +5,7 @@ import com.chapchap.subscription.domain.address.service.AddressService;
 import com.chapchap.subscription.domain.holiday.entity.Holiday;
 import com.chapchap.subscription.domain.holiday.repository.HolidayRepository;
 import com.chapchap.subscription.domain.order.entity.OrderDeliveryTimeSlot;
+import com.chapchap.subscription.domain.order.service.FirstOrderAmountCalculator;
 import com.chapchap.subscription.domain.order.service.FirstOrderPreparationCommand;
 import com.chapchap.subscription.domain.order.service.FirstOrderPreparationResult;
 import com.chapchap.subscription.domain.order.service.FirstOrderService;
@@ -21,6 +22,7 @@ import com.chapchap.subscription.domain.payment.support.PaymentBusinessKeyGenera
 import com.chapchap.subscription.domain.subscription.entity.*;
 import com.chapchap.subscription.domain.subscription.repository.*;
 import com.chapchap.subscription.domain.subscription.request.FirstSubscriptionRequest;
+import com.chapchap.subscription.domain.subscription.response.FirstSubscriptionPreviewResponse;
 import com.chapchap.subscription.domain.terms.entity.UserTermsAgreement;
 import com.chapchap.subscription.domain.terms.service.TermsService;
 import com.chapchap.subscription.global.exception.subscription.PlanNotFoundException;
@@ -169,6 +171,32 @@ public class FirstSubscriptionPreparationService {
     }
 
     /**
+     * 첫 구독 신청 조건으로 예상 이용 기간과 결제금액을 조회한다.
+     *
+     * <p>실제 첫 결제와 같은 입력 검증·일정·메뉴·주문 단위 금액 계산을 사용하지만, 구독·주문·결제
+     * 데이터를 만들거나 외부 결제·Kafka를 호출하지 않는다. Preview 결과는 실제 결제 금액을 고정하지
+     * 않으며, 실제 요청은 별도의 처리 기준 시각으로 다시 계산한다.</p>
+     */
+    @Transactional(readOnly = true)
+    public FirstSubscriptionPreviewResponse preview(Long userId, FirstSubscriptionRequest request) {
+        LocalDateTime referenceAt = timeProvider.now();
+        Subscription existing = subscriptionRepository.findByUserId(userId).orElse(null);
+        rejectActive(existing);
+
+        termsService.requireCurrentAgreement(userId);
+        Plan plan = planRepository.findByPublicId(request.planId()).orElseThrow(PlanNotFoundException::new);
+        Map<DeliveryWeekday, ValidatedCondition> conditions = validateConditions(userId, request);
+        requireCurrentPaymentMethod(userId);
+
+        SubscriptionSchedule schedule = calculateSchedule(referenceAt, conditions.keySet());
+        boolean applyFirstDiscount = existing == null || !existing.isFirstSubscriptionDiscountUsed();
+        List<FirstOrderPreparationCommand.Delivery> deliveries = createDeliveries(
+            plan, schedule.deliveryDates(), conditions
+        );
+        return createPreviewResponse(schedule, plan, deliveries, applyFirstDiscount);
+    }
+
+    /**
      * 동시 prepare 충돌로 현재 요청의 트랜잭션이 끝난 뒤 먼저 확정된 처리 중 신청을 조회한다.
      *
      * <p>구독·최신 기간·첫 결제 거래가 모두 처리 대기 상태로 일치할 때만 복구 결과를 반환한다.
@@ -307,6 +335,33 @@ public class FirstSubscriptionPreparationService {
                 toOrderTimeSlot(condition.request().deliveryTimeSlot())
             );
         }).toList();
+    }
+
+    private FirstSubscriptionPreviewResponse createPreviewResponse(
+        SubscriptionSchedule schedule,
+        Plan plan,
+        List<FirstOrderPreparationCommand.Delivery> deliveries,
+        boolean applyFirstDiscount
+    ) {
+        long totalMealAmount = 0L;
+        long totalDeliveryFee = 0L;
+        long totalDiscountAmount = 0L;
+        long paymentAmount = 0L;
+
+        for (FirstOrderPreparationCommand.Delivery delivery : deliveries) {
+            FirstOrderAmountCalculator.FirstOrderAmount amount = FirstOrderAmountCalculator.calculate(
+                plan.getUnitPrice(), delivery.mealQuantity(), applyFirstDiscount
+            );
+            totalMealAmount = Math.addExact(totalMealAmount, amount.mealAmount());
+            totalDeliveryFee = Math.addExact(totalDeliveryFee, amount.deliveryFee());
+            totalDiscountAmount = Math.addExact(totalDiscountAmount, amount.discountAmount());
+            paymentAmount = Math.addExact(paymentAmount, amount.actualAllocatedAmount());
+        }
+
+        return new FirstSubscriptionPreviewResponse(
+            schedule.periodStartDate(), schedule.periodEndDate(),
+            totalMealAmount, totalDeliveryFee, totalDiscountAmount, paymentAmount
+        );
     }
 
     private OrderDeliveryTimeSlot toOrderTimeSlot(DeliveryTimeSlot slot) {

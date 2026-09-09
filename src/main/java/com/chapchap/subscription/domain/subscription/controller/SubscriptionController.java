@@ -3,12 +3,14 @@ package com.chapchap.subscription.domain.subscription.controller;
 import com.chapchap.subscription.domain.subscription.request.FirstSubscriptionRequest;
 import com.chapchap.subscription.domain.subscription.request.SettingChangeRequest;
 import com.chapchap.subscription.domain.subscription.response.CurrentSubscriptionResponse;
+import com.chapchap.subscription.domain.subscription.response.FirstSubscriptionPreviewResponse;
 import com.chapchap.subscription.domain.subscription.response.FirstSubscriptionResponse;
 import com.chapchap.subscription.domain.subscription.response.SubscriptionCancellationResponse;
 import com.chapchap.subscription.domain.subscription.response.SettingChangeResponse;
 import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationService;
 import com.chapchap.subscription.domain.subscription.service.CurrentSubscriptionQueryService;
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
+import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionPreparationService;
 import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
 import com.chapchap.subscription.global.response.GlobalResponse;
 import jakarta.validation.Valid;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/subscription/subscriptions")
 public class SubscriptionController {
     private final FirstSubscriptionService firstSubscriptionService;
+    private final FirstSubscriptionPreparationService firstSubscriptionPreparationService;
     private final CurrentSubscriptionQueryService currentSubscriptionQueryService;
     private final SubscriptionCancellationService subscriptionCancellationService;
     private final SettingChangeService settingChangeService;
@@ -54,6 +57,18 @@ public class SubscriptionController {
     ) {
         return GlobalResponse.success(
             firstSubscriptionService.subscribe(Long.parseLong(authentication.getName()), request)
+        );
+    }
+
+    /** 실제 첫 결제 전에 인증 고객의 신청 조건으로 예상 결제금액을 조회한다. */
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/preview")
+    public GlobalResponse<FirstSubscriptionPreviewResponse> preview(
+        Authentication authentication,
+        @Valid @RequestBody FirstSubscriptionRequest request
+    ) {
+        return GlobalResponse.success(
+            firstSubscriptionPreparationService.preview(Long.parseLong(authentication.getName()), request)
         );
     }
 
