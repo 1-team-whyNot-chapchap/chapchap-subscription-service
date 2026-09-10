@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/subscription/terms/non-face-to-face")
-@Tag(name = "비대면 보관 약관")
+@Tag(name = "비대면 보관 약관", description = "기존 클라이언트 호환을 위해 유지하는 단일 약관 API")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 public class TermsController {
 
@@ -30,7 +30,11 @@ public class TermsController {
     // 현제 적용중인 약관 데이터 받아오기
     @PreAuthorize("isAuthenticated()")
     @GetMapping
-    @Operation(summary = "현재 비대면 보관 약관 조회", description = "첫 구독 신청 전에 동의해야 하는 현재 비대면 보관 약관을 조회합니다.")
+    @Operation(
+        summary = "현재 비대면 보관 약관 조회",
+        description = "호환 API입니다. 신규 클라이언트는 현재 필수 약관 전체 조회 API를 사용합니다.",
+        deprecated = true
+    )
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
         ErrorCode.CURRENT_REQUIRED_TERMS_NOT_FOUND,
@@ -49,7 +53,11 @@ public class TermsController {
     // 동의한 내역이 있는지 확인하고 처리
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/agreements")
-    @Operation(summary = "비대면 보관 약관 동의", description = "현재 필수 약관의 버전을 확인한 뒤 인증 고객의 동의를 기록합니다.")
+    @Operation(
+        summary = "비대면 보관 약관 동의",
+        description = "호환 API입니다. 신규 클라이언트는 현재 필수 약관 동의 API를 사용합니다.",
+        deprecated = true
+    )
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
         ErrorCode.INVALID_REQUEST,
