@@ -15,6 +15,7 @@ public record OrderDetailResponse(
     String menuName,
     Integer mealQuantity,
     String menuDescription,
+    String imageUrl,
     String allergenInfo,
     String nutritionInfo,
     String ingredientInfo,

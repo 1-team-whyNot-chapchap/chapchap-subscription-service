@@ -18,6 +18,7 @@ public record PlanDetailResponse(
         Integer menuSequence,
         String name,
         String description,
+        String imageUrl,
         String allergenInfo,
         String nutritionInfo,
         String ingredientInfo

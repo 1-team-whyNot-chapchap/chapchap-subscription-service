@@ -76,6 +76,7 @@ class PlanQueryServiceTest {
         assertThat(response.menus()).hasSize(31);
         assertThat(response.menus().getFirst().menuSequence()).isEqualTo(1);
         assertThat(response.menus().getLast().menuSequence()).isEqualTo(31);
+        assertThat(response.menus().getFirst().imageUrl()).isEqualTo("https://example.com/menu-1.jpg");
     }
 
     @Test
@@ -137,6 +138,7 @@ class PlanQueryServiceTest {
             lenient().when(menu.getMenuSequence()).thenReturn(sequence);
             lenient().when(menu.getName()).thenReturn(sequence + "일 메뉴");
             lenient().when(menu.getDescription()).thenReturn("메뉴 설명");
+            lenient().when(menu.getImageUrl()).thenReturn("https://example.com/menu-" + sequence + ".jpg");
             lenient().when(menu.getAllergenInfo()).thenReturn("알레르기 정보");
             lenient().when(menu.getNutritionInfo()).thenReturn("영양 정보");
             lenient().when(menu.getIngredientInfo()).thenReturn("원재료 정보");

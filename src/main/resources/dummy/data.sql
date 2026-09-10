@@ -83,6 +83,7 @@ INSERT INTO menus (
     menu_sequence,
     name,
     description,
+    image_url,
     allergen_info,
     nutrition_info,
     ingredient_info
@@ -106,6 +107,7 @@ SELECT
     menu_sequences.menu_sequence,
     CONCAT(plans.name, ' ', LPAD(menu_sequences.menu_sequence, 2, '0'), '일 메뉴'),
     CONCAT(plans.name, ' 플랜의 ', menu_sequences.menu_sequence, '일 배송용 로컬 테스트 메뉴'),
+    CONCAT('https://example.com/images/menus/', plans.id, '-', menu_sequences.menu_sequence, '.jpg'),
     '로컬 테스트 데이터 — 실제 알레르기 정보 확인 필요',
     '로컬 테스트 데이터 — 실제 영양성분 정보 확인 필요',
     '로컬 테스트 데이터 — 실제 원재료 정보 확인 필요'
