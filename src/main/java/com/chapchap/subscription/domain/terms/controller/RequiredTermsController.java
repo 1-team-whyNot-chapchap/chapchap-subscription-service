@@ -28,7 +28,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/subscription/terms")
-@Tag(name = "구독 필수 약관")
+@Tag(name = "구독 필수 약관", description = "첫 구독 계약 전에 확인·동의하는 현재 필수 약관 API")
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 public class RequiredTermsController {
 
@@ -36,7 +36,10 @@ public class RequiredTermsController {
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/required")
-    @Operation(summary = "현재 필수 약관 전체 조회")
+    @Operation(
+        summary = "현재 필수 약관 전체 조회",
+        description = "첫 구독 미리보기와 실제 첫 구독 요청 전에 표시할 현재 필수 약관의 유형·제목·전문·버전을 조회합니다."
+    )
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
         ErrorCode.CURRENT_REQUIRED_TERMS_NOT_FOUND,
@@ -49,7 +52,10 @@ public class RequiredTermsController {
 
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/agreements")
-    @Operation(summary = "현재 필수 약관 동의")
+    @Operation(
+        summary = "현재 필수 약관 동의",
+        description = "화면에 표시한 약관 유형과 버전을 기준으로 인증 고객의 동의를 기록합니다. 실제 첫 구독 요청에서도 모든 현재 필수 약관 동의 여부를 다시 검증합니다."
+    )
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
         ErrorCode.INVALID_REQUEST,
