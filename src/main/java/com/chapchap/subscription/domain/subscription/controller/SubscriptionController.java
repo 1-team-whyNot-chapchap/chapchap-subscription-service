@@ -12,7 +12,13 @@ import com.chapchap.subscription.domain.subscription.service.CurrentSubscription
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionPreparationService;
 import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
+import com.chapchap.subscription.global.config.openapi.CustomApiResponse;
+import com.chapchap.subscription.global.config.openapi.OpenApiConfig;
+import com.chapchap.subscription.global.exception.ErrorCode;
 import com.chapchap.subscription.global.response.GlobalResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,6 +34,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/subscription/subscriptions")
+@Tag(name = "구독")
+@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 public class SubscriptionController {
     private final FirstSubscriptionService firstSubscriptionService;
     private final FirstSubscriptionPreparationService firstSubscriptionPreparationService;
@@ -38,6 +46,12 @@ public class SubscriptionController {
     /** Gateway 인증 고객의 현재 구독 상태와 적용 설정을 조회한다. */
     @PreAuthorize("isAuthenticated()")
     @GetMapping
+    @Operation(summary = "현재 구독 현황 조회")
+    @CustomApiResponse({
+        ErrorCode.AUTHENTICATION_REQUIRED,
+        ErrorCode.DATABASE_ERROR,
+        ErrorCode.INTERNAL_SERVER_ERROR
+    })
     public GlobalResponse<CurrentSubscriptionResponse> getCurrentSubscription(
         Authentication authentication
     ) {
@@ -51,6 +65,22 @@ public class SubscriptionController {
     /** Gateway 인증 고객을 기준으로 첫 구독 신청을 처리한다. */
     @PreAuthorize("isAuthenticated()")
     @PostMapping
+    @Operation(summary = "첫 구독 신청 및 첫 결제")
+    @CustomApiResponse({
+        ErrorCode.AUTHENTICATION_REQUIRED,
+        ErrorCode.INVALID_REQUEST,
+        ErrorCode.CURRENT_REQUIRED_TERMS_NOT_FOUND,
+        ErrorCode.TERMS_AGREEMENT_REQUIRED,
+        ErrorCode.PLAN_NOT_FOUND,
+        ErrorCode.SUBSCRIPTION_ALREADY_ACTIVE,
+        ErrorCode.ADDRESS_NOT_FOUND,
+        ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED,
+        ErrorCode.PAYMENT_DECLINED,
+        ErrorCode.PAYMENT_PROVIDER_AUTHENTICATION_FAILED,
+        ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE,
+        ErrorCode.DATABASE_ERROR,
+        ErrorCode.INTERNAL_SERVER_ERROR
+    })
     public GlobalResponse<FirstSubscriptionResponse> create(
         Authentication authentication,
         @Valid @RequestBody FirstSubscriptionRequest request
@@ -63,6 +93,19 @@ public class SubscriptionController {
     /** 실제 첫 결제 전에 인증 고객의 신청 조건으로 예상 결제금액을 조회한다. */
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/preview")
+    @Operation(summary = "첫 구독 예상 결제금액 조회")
+    @CustomApiResponse({
+        ErrorCode.AUTHENTICATION_REQUIRED,
+        ErrorCode.INVALID_REQUEST,
+        ErrorCode.CURRENT_REQUIRED_TERMS_NOT_FOUND,
+        ErrorCode.TERMS_AGREEMENT_REQUIRED,
+        ErrorCode.PLAN_NOT_FOUND,
+        ErrorCode.SUBSCRIPTION_ALREADY_ACTIVE,
+        ErrorCode.ADDRESS_NOT_FOUND,
+        ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED,
+        ErrorCode.DATABASE_ERROR,
+        ErrorCode.INTERNAL_SERVER_ERROR
+    })
     public GlobalResponse<FirstSubscriptionPreviewResponse> preview(
         Authentication authentication,
         @Valid @RequestBody FirstSubscriptionRequest request
@@ -74,6 +117,22 @@ public class SubscriptionController {
 
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/setting-changes")
+    @Operation(summary = "구독 설정 변경 요청")
+    @CustomApiResponse({
+        ErrorCode.AUTHENTICATION_REQUIRED,
+        ErrorCode.INVALID_REQUEST,
+        ErrorCode.SUBSCRIPTION_NOT_FOUND,
+        ErrorCode.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
+        ErrorCode.SUBSCRIPTION_CHANGE_IN_PROGRESS,
+        ErrorCode.PLAN_NOT_FOUND,
+        ErrorCode.ADDRESS_NOT_FOUND,
+        ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED,
+        ErrorCode.PAYMENT_CANCELLATION_FAILED,
+        ErrorCode.PAYMENT_PROVIDER_AUTHENTICATION_FAILED,
+        ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE,
+        ErrorCode.DATABASE_ERROR,
+        ErrorCode.INTERNAL_SERVER_ERROR
+    })
     public GlobalResponse<SettingChangeResponse> changeSetting(
         Authentication authentication, @Valid @RequestBody SettingChangeRequest request
     ) {
@@ -83,6 +142,18 @@ public class SubscriptionController {
 
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/setting-changes/confirm")
+    @Operation(summary = "증액 구독 설정 변경 결제 확인")
+    @CustomApiResponse({
+        ErrorCode.AUTHENTICATION_REQUIRED,
+        ErrorCode.SUBSCRIPTION_NOT_FOUND,
+        ErrorCode.SUBSCRIPTION_CHANGE_CONFIRMATION_NOT_FOUND,
+        ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED,
+        ErrorCode.SETTING_CHANGE_PAYMENT_DECLINED,
+        ErrorCode.PAYMENT_PROVIDER_AUTHENTICATION_FAILED,
+        ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE,
+        ErrorCode.DATABASE_ERROR,
+        ErrorCode.INTERNAL_SERVER_ERROR
+    })
     public GlobalResponse<SettingChangeResponse> confirmSettingChange(Authentication authentication) {
         return GlobalResponse.success(settingChangeService.confirm(Long.parseLong(authentication.getName())));
     }
@@ -90,6 +161,20 @@ public class SubscriptionController {
     /** 현재 상태에 맞는 일반 해지·시작 취소·재시도 중단을 처리한다. */
     @PreAuthorize("isAuthenticated()")
     @DeleteMapping
+    @Operation(summary = "구독 해지 또는 시작 전 취소")
+    @CustomApiResponse({
+        ErrorCode.AUTHENTICATION_REQUIRED,
+        ErrorCode.SUBSCRIPTION_NOT_FOUND,
+        ErrorCode.SUBSCRIPTION_CANCELLATION_NOT_ALLOWED,
+        ErrorCode.SUBSCRIPTION_PRE_START_CANCELLATION_DEADLINE_PASSED,
+        ErrorCode.SUBSCRIPTION_KAFKA_DELIVERY_COMPLETED,
+        ErrorCode.PAYMENT_TRANSACTION_PROCESSING,
+        ErrorCode.PAYMENT_CANCELLATION_FAILED,
+        ErrorCode.PAYMENT_PROVIDER_AUTHENTICATION_FAILED,
+        ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE,
+        ErrorCode.DATABASE_ERROR,
+        ErrorCode.INTERNAL_SERVER_ERROR
+    })
     public GlobalResponse<SubscriptionCancellationResponse> cancel(Authentication authentication) {
         return GlobalResponse.success(
             subscriptionCancellationService.cancel(Long.parseLong(authentication.getName()))
