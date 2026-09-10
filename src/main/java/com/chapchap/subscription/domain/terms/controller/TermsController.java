@@ -30,7 +30,7 @@ public class TermsController {
     // 현제 적용중인 약관 데이터 받아오기
     @PreAuthorize("isAuthenticated()")
     @GetMapping
-    @Operation(summary = "현재 비대면 보관 약관 조회")
+    @Operation(summary = "현재 비대면 보관 약관 조회", description = "첫 구독 신청 전에 동의해야 하는 현재 비대면 보관 약관을 조회합니다.")
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
         ErrorCode.CURRENT_REQUIRED_TERMS_NOT_FOUND,
@@ -49,7 +49,7 @@ public class TermsController {
     // 동의한 내역이 있는지 확인하고 처리
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/agreements")
-    @Operation(summary = "비대면 보관 약관 동의")
+    @Operation(summary = "비대면 보관 약관 동의", description = "현재 필수 약관의 버전을 확인한 뒤 인증 고객의 동의를 기록합니다.")
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
         ErrorCode.INVALID_REQUEST,
