@@ -18,15 +18,11 @@ import com.chapchap.subscription.domain.payment.service.exception.CurrentPayment
 import com.chapchap.subscription.domain.payment.service.command.FirstPaymentExecutionCommand;
 import com.chapchap.subscription.domain.payment.service.command.PaymentAllocationCommand;
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionSettingStatus;
-import com.chapchap.subscription.domain.subscription.repository.SubscriptionRepository;
-import com.chapchap.subscription.domain.subscription.repository.SubscriptionSettingRepository;
 import com.chapchap.subscription.domain.subscription.request.SettingChangeRequest;
 import com.chapchap.subscription.domain.subscription.response.SettingChangeResponse;
 import com.chapchap.subscription.global.exception.payment.PaymentCancellationFailedException;
 import com.chapchap.subscription.global.exception.payment.PaymentProviderAuthenticationFailedException;
 import com.chapchap.subscription.global.exception.payment.SettingChangePaymentDeclinedException;
-import com.chapchap.subscription.global.exception.subscription.SubscriptionChangeConfirmationNotFoundException;
-import com.chapchap.subscription.global.exception.subscription.SubscriptionNotFoundException;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,8 +42,6 @@ public class SettingChangeService {
     private final PaymentCancellationExecutionService cancellationExecution;
     private final SettingChangeRefundCompletionService refundCompletion;
     private final RefundRepository refunds;
-    private final SubscriptionRepository subscriptions;
-    private final SubscriptionSettingRepository settings;
     private final KstReferenceTimeProvider time;
 
     public SettingChangeService(SettingChangePreparationFlowService preparation,
@@ -57,7 +51,6 @@ public class SettingChangeService {
         SettingChangePaymentCompletionService paymentCompletion, SettingChangeRefundPreparationService refundPreparation,
         PaymentCancellationExecutionService cancellationExecution,
         SettingChangeRefundCompletionService refundCompletion, RefundRepository refunds,
-        SubscriptionRepository subscriptions, SubscriptionSettingRepository settings,
         KstReferenceTimeProvider time) {
         this.preparation = preparation; this.amounts = amounts; this.finalization = finalization;
         this.completion = completion;
@@ -65,7 +58,7 @@ public class SettingChangeService {
         this.paymentPreparation = paymentPreparation; this.paymentExecution = paymentExecution;
         this.paymentCompletion = paymentCompletion; this.refundPreparation = refundPreparation;
         this.cancellationExecution = cancellationExecution; this.refundCompletion = refundCompletion;
-        this.refunds = refunds; this.subscriptions = subscriptions; this.settings = settings; this.time = time;
+        this.refunds = refunds; this.time = time;
     }
 
     public SettingChangeResponse change(Long userId, SettingChangeRequest request) {
@@ -76,36 +69,27 @@ public class SettingChangeService {
             return response(snapshot, SubscriptionSettingStatus.ACTIVE, false, null, null);
         }
         if (snapshot.newAmount() > snapshot.oldAmount()) {
-            com.chapchap.subscription.domain.payment.entity.PaymentMethod method;
             try {
-                method = currentPaymentMethod(userId);
+                currentPaymentMethod(userId);
             } catch (CurrentPaymentMethodUnavailableException exception) {
                 completion.complete(prepared.settingId(), SettingChangeCompletionStatus.NOT_APPLIED, time.now());
                 throw exception;
             }
-            return response(snapshot, SubscriptionSettingStatus.CHANGE_PENDING, true, method, null);
+            return processIncrease(userId, prepared.settingId(), snapshot);
         }
         return processReduction(snapshot);
     }
 
-    public SettingChangeResponse confirm(Long userId) {
-        var subscription = subscriptions.findByUserId(userId).orElseThrow(SubscriptionNotFoundException::new);
-        var setting = settings.findTopBySubscriptionIdAndStatusOrderBySettingSequenceDesc(
-            subscription.getId(), SubscriptionSettingStatus.CHANGE_PENDING)
-            .orElseThrow(SubscriptionChangeConfirmationNotFoundException::new);
-        SettingChangeAmountSnapshot snapshot = amounts.analyze(setting.getId());
-        if (snapshot.newAmount() <= snapshot.oldAmount()) {
-            throw new SubscriptionChangeConfirmationNotFoundException();
-        }
+    private SettingChangeResponse processIncrease(Long userId, Long settingId, SettingChangeAmountSnapshot snapshot) {
         currentPaymentMethod(userId);
-        var payment = paymentPreparation.prepare(userId, setting.getId());
+        var payment = paymentPreparation.prepare(userId, settingId);
         if (payment.getStatus() != PaymentTransactionStatus.PROCESSING) {
-            throw new SubscriptionChangeConfirmationNotFoundException();
+            throw new IllegalStateException("Additional payment must be processing before execution");
         }
         var execution = paymentExecution.execute(new FirstPaymentExecutionCommand(payment.getId(), "구독 설정 변경 추가 결제"));
         List<PaymentAllocationCommand> allocations = allocationCommands(snapshot.newOrders(), payment.getTransactionAmount());
         AutomaticPaymentStatus paymentStatus = paymentCompletion.complete(
-            setting.getId(), execution, allocations, time.now());
+            settingId, execution, allocations, time.now());
         if (paymentStatus == AutomaticPaymentStatus.DECLINED) {
             throw new SettingChangePaymentDeclinedException();
         }

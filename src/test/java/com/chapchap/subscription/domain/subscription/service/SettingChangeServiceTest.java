@@ -2,16 +2,19 @@ package com.chapchap.subscription.domain.subscription.service;
 
 import com.chapchap.subscription.domain.payment.entity.PaymentMethod;
 import com.chapchap.subscription.domain.payment.entity.PaymentProviderCode;
+import com.chapchap.subscription.domain.payment.entity.PaymentTransaction;
+import com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus;
+import com.chapchap.subscription.domain.payment.client.AutomaticPaymentStatus;
 import com.chapchap.subscription.domain.payment.repository.PaymentMethodRepository;
 import com.chapchap.subscription.domain.payment.repository.RefundRepository;
 import com.chapchap.subscription.domain.payment.service.FirstPaymentExecutionService;
 import com.chapchap.subscription.domain.payment.service.PaymentCancellationExecutionService;
 import com.chapchap.subscription.domain.payment.service.SettingChangePaymentPreparationService;
+import com.chapchap.subscription.domain.payment.service.result.FirstPaymentExecutionResult;
 import com.chapchap.subscription.domain.payment.service.SettingChangeRefundPreparationService;
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionSetting;
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionSettingStatus;
-import com.chapchap.subscription.domain.subscription.repository.SubscriptionRepository;
-import com.chapchap.subscription.domain.subscription.repository.SubscriptionSettingRepository;
+import com.chapchap.subscription.domain.order.entity.Order;
 import com.chapchap.subscription.domain.subscription.request.SettingChangeRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +36,8 @@ class SettingChangeServiceTest {
     SettingChangeCompletionService completion = mock(SettingChangeCompletionService.class);
     PaymentMethodRepository paymentMethods = mock(PaymentMethodRepository.class);
     FirstPaymentExecutionService paymentExecution = mock(FirstPaymentExecutionService.class);
+    SettingChangePaymentPreparationService paymentPreparation = mock(SettingChangePaymentPreparationService.class);
+    SettingChangePaymentCompletionService paymentCompletion = mock(SettingChangePaymentCompletionService.class);
     KstReferenceTimeProvider time = mock(KstReferenceTimeProvider.class);
     SettingChangeService service;
 
@@ -40,11 +45,10 @@ class SettingChangeServiceTest {
     void setUp() {
         service = new SettingChangeService(preparation, amounts, finalization,
             completion, paymentMethods,
-            mock(SettingChangePaymentPreparationService.class), paymentExecution,
-            mock(SettingChangePaymentCompletionService.class), mock(SettingChangeRefundPreparationService.class),
+            paymentPreparation, paymentExecution,
+            paymentCompletion, mock(SettingChangeRefundPreparationService.class),
             mock(PaymentCancellationExecutionService.class), mock(SettingChangeRefundCompletionService.class),
-            mock(RefundRepository.class), mock(SubscriptionRepository.class),
-            mock(SubscriptionSettingRepository.class), time);
+            mock(RefundRepository.class), time);
     }
 
     @Test
@@ -66,25 +70,37 @@ class SettingChangeServiceTest {
     }
 
     @Test
-    void 증액이면_결제하지_않고_현재결제수단과_확인필요를_반환한다() {
+    void 증액이면_최종확인요청에서_추가결제를_실행하고_완료결과를_반환한다() {
         var setting = pendingSetting();
         var prepared = new PreparedSettingChange(1L, 2L, 2, now(), LocalDate.of(2026, 9, 8), 1);
-        var snapshot = new SettingChangeAmountSnapshot(setting, List.of(), List.of(), List.of(), 10_000L, 13_000L);
+        Order order = mock(Order.class);
+        when(order.getActualAllocatedAmount()).thenReturn(13_000L);
+        when(order.getDeliveryDate()).thenReturn(LocalDate.of(2026, 9, 8));
+        when(order.getId()).thenReturn(1L);
+        var snapshot = new SettingChangeAmountSnapshot(setting, List.of(), List.of(order), List.of(), 10_000L, 13_000L);
         PaymentMethod method = PaymentMethod.createAsCurrent(10L, PaymentProviderCode.PORTONE,
             "protected", "카드사", "1234-****", now());
+        PaymentTransaction payment = mock(PaymentTransaction.class);
+        FirstPaymentExecutionResult execution = mock(FirstPaymentExecutionResult.class);
         when(preparation.prepare(org.mockito.ArgumentMatchers.eq(10L), org.mockito.ArgumentMatchers.any()))
             .thenReturn(prepared);
         when(amounts.analyze(2L)).thenReturn(snapshot);
         when(paymentMethods.findByUserIdAndStatusAndIsCurrentTrueAndDeletedAtIsNull(
             org.mockito.ArgumentMatchers.eq(10L), org.mockito.ArgumentMatchers.any())).thenReturn(Optional.of(method));
+        when(paymentPreparation.prepare(10L, 2L)).thenReturn(payment);
+        when(payment.getStatus()).thenReturn(PaymentTransactionStatus.PROCESSING);
+        when(payment.getId()).thenReturn(3L);
+        when(payment.getTransactionAmount()).thenReturn(3_000L);
+        when(paymentExecution.execute(org.mockito.ArgumentMatchers.any())).thenReturn(execution);
+        when(paymentCompletion.complete(org.mockito.ArgumentMatchers.eq(2L), org.mockito.ArgumentMatchers.same(execution),
+            org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any())).thenReturn(AutomaticPaymentStatus.PAID);
 
         var response = service.change(10L, new SettingChangeRequest("PLN", List.of()));
 
-        assertThat(response.settingStatus()).isEqualTo(SubscriptionSettingStatus.CHANGE_PENDING);
-        assertThat(response.paymentConfirmationRequired()).isTrue();
+        assertThat(response.settingStatus()).isEqualTo(SubscriptionSettingStatus.ACTIVE);
+        assertThat(response.paymentConfirmationRequired()).isFalse();
         assertThat(response.differenceAmount()).isEqualTo(3_000L);
-        assertThat(response.currentPaymentMethod().cardCompany()).isEqualTo("카드사");
-        verify(paymentExecution, never()).execute(org.mockito.ArgumentMatchers.any());
+        verify(paymentExecution).execute(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

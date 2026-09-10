@@ -37,6 +37,13 @@ public class SettingChangeOrderService {
         return orderRepository.saveAll(orders);
     }
 
+    /** 변경 대기 주문을 저장하지 않고 동일한 가격 규칙으로 총액만 계산한다. */
+    public long calculatePlannedAmount(SettingChangeOrderPreparationCommand command) {
+        return command.deliveries().stream()
+            .mapToLong(delivery -> amounts(command.pricingPolicy(), command.plan(), delivery).actualAllocatedAmount())
+            .sum();
+    }
+
     private Order createOrder(
         SettingChangeOrderPreparationCommand command,
         SettingChangeOrderPreparationCommand.Delivery delivery

@@ -5,6 +5,7 @@ import com.chapchap.subscription.domain.subscription.request.SettingChangeReques
 import com.chapchap.subscription.domain.subscription.response.CurrentSubscriptionResponse;
 import com.chapchap.subscription.domain.subscription.response.FirstSubscriptionPreviewResponse;
 import com.chapchap.subscription.domain.subscription.response.FirstSubscriptionResponse;
+import com.chapchap.subscription.domain.subscription.response.SettingChangePreviewResponse;
 import com.chapchap.subscription.domain.subscription.response.SubscriptionCancellationResponse;
 import com.chapchap.subscription.domain.subscription.response.SettingChangeResponse;
 import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationService;
@@ -12,6 +13,7 @@ import com.chapchap.subscription.domain.subscription.service.CurrentSubscription
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionPreparationService;
 import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
+import com.chapchap.subscription.domain.subscription.service.SettingChangePreviewService;
 import com.chapchap.subscription.global.config.openapi.CustomApiResponse;
 import com.chapchap.subscription.global.config.openapi.OpenApiConfig;
 import com.chapchap.subscription.global.exception.ErrorCode;
@@ -42,6 +44,7 @@ public class SubscriptionController {
     private final CurrentSubscriptionQueryService currentSubscriptionQueryService;
     private final SubscriptionCancellationService subscriptionCancellationService;
     private final SettingChangeService settingChangeService;
+    private final SettingChangePreviewService settingChangePreviewService;
 
     /** Gateway 인증 고객의 현재 구독 상태와 적용 설정을 조회한다. */
     @PreAuthorize("isAuthenticated()")
@@ -116,8 +119,31 @@ public class SubscriptionController {
     }
 
     @PreAuthorize("isAuthenticated()")
+    @PostMapping("/setting-changes/preview")
+    @Operation(summary = "구독 설정 변경 미리보기", description = "저장·결제·환불·Kafka 호출 없이 변경 후 금액, 적용일, 최종 확인 뒤 필요한 처리를 계산합니다.")
+    @CustomApiResponse({
+        ErrorCode.AUTHENTICATION_REQUIRED,
+        ErrorCode.INVALID_REQUEST,
+        ErrorCode.SUBSCRIPTION_NOT_FOUND,
+        ErrorCode.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
+        ErrorCode.SUBSCRIPTION_CHANGE_IN_PROGRESS,
+        ErrorCode.PLAN_NOT_FOUND,
+        ErrorCode.ADDRESS_NOT_FOUND,
+        ErrorCode.CURRENT_REQUIRED_TERMS_NOT_FOUND,
+        ErrorCode.TERMS_AGREEMENT_REQUIRED,
+        ErrorCode.DATABASE_ERROR,
+        ErrorCode.INTERNAL_SERVER_ERROR
+    })
+    public GlobalResponse<SettingChangePreviewResponse> previewSettingChange(
+        Authentication authentication, @Valid @RequestBody SettingChangeRequest request
+    ) {
+        return GlobalResponse.success(settingChangePreviewService.preview(
+            Long.parseLong(authentication.getName()), request));
+    }
+
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/setting-changes")
-    @Operation(summary = "구독 설정 변경 요청", description = "플랜 또는 요일별 배송 조건 변경에 따른 차액 결제·취소 필요 여부를 처리합니다.")
+    @Operation(summary = "구독 설정 변경 확인 및 실행", description = "미리보기에서 확인한 변경 조건을 최신 상태로 다시 검증·계산한 뒤, 차액 없음·추가 결제·환불을 처리하고 완료 결과를 반환합니다.")
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
         ErrorCode.INVALID_REQUEST,
@@ -127,6 +153,7 @@ public class SubscriptionController {
         ErrorCode.PLAN_NOT_FOUND,
         ErrorCode.ADDRESS_NOT_FOUND,
         ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED,
+        ErrorCode.SETTING_CHANGE_PAYMENT_DECLINED,
         ErrorCode.PAYMENT_CANCELLATION_FAILED,
         ErrorCode.PAYMENT_PROVIDER_AUTHENTICATION_FAILED,
         ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE,
@@ -138,24 +165,6 @@ public class SubscriptionController {
     ) {
         return GlobalResponse.success(settingChangeService.change(
             Long.parseLong(authentication.getName()), request));
-    }
-
-    @PreAuthorize("isAuthenticated()")
-    @PostMapping("/setting-changes/confirm")
-    @Operation(summary = "증액 구독 설정 변경 결제 확인", description = "증액 설정 변경에 대해 현재 자동결제수단으로 차액 결제를 다시 시도합니다.")
-    @CustomApiResponse({
-        ErrorCode.AUTHENTICATION_REQUIRED,
-        ErrorCode.SUBSCRIPTION_NOT_FOUND,
-        ErrorCode.SUBSCRIPTION_CHANGE_CONFIRMATION_NOT_FOUND,
-        ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED,
-        ErrorCode.SETTING_CHANGE_PAYMENT_DECLINED,
-        ErrorCode.PAYMENT_PROVIDER_AUTHENTICATION_FAILED,
-        ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE,
-        ErrorCode.DATABASE_ERROR,
-        ErrorCode.INTERNAL_SERVER_ERROR
-    })
-    public GlobalResponse<SettingChangeResponse> confirmSettingChange(Authentication authentication) {
-        return GlobalResponse.success(settingChangeService.confirm(Long.parseLong(authentication.getName())));
     }
 
     /** 현재 상태에 맞는 일반 해지·시작 취소·재시도 중단을 처리한다. */
