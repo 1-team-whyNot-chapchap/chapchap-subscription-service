@@ -4,6 +4,7 @@ import com.chapchap.subscription.domain.terms.entity.Terms;
 import com.chapchap.subscription.domain.terms.entity.UserTermsAgreement;
 import com.chapchap.subscription.domain.terms.repository.TermsRepository;
 import com.chapchap.subscription.domain.terms.repository.UserTermsAgreementRepository;
+import com.chapchap.subscription.domain.terms.repository.SubscriptionContractTermsAgreementRepository;
 import com.chapchap.subscription.domain.terms.request.TermsAgreementRequest;
 import com.chapchap.subscription.domain.terms.response.TermsAgreementResponse;
 import com.chapchap.subscription.domain.terms.response.TermsCurrentResponse;
@@ -24,6 +25,7 @@ import org.springframework.transaction.TransactionStatus;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,6 +46,7 @@ class TermsServiceTest {
 
     @Mock private TermsRepository termsRepository;
     @Mock private UserTermsAgreementRepository agreementRepository;
+    @Mock private SubscriptionContractTermsAgreementRepository contractTermsAgreementRepository;
     @Mock private PlatformTransactionManager transactionManager;
     @Mock private TransactionStatus transactionStatus;
 
@@ -51,7 +54,9 @@ class TermsServiceTest {
 
     @BeforeEach
     void setUp() {
-        termsService = new TermsService(termsRepository, agreementRepository, transactionManager);
+        termsService = new TermsService(
+                termsRepository, agreementRepository, contractTermsAgreementRepository, transactionManager
+        );
     }
 
     @Test
@@ -176,6 +181,20 @@ class TermsServiceTest {
                 .isInstanceOf(TermsAgreementRequiredException.class)
                 .satisfies(exception -> assertThat(((TermsAgreementRequiredException) exception).getErrorCode())
                         .isEqualTo(ErrorCode.TERMS_AGREEMENT_REQUIRED));
+    }
+
+    @Test
+    void 첫_구독_전에는_현재_필수_약관_전체에_동의해야_한다() {
+        Terms nonFaceTerms = currentTerms();
+        Terms subscriptionTerms = mock(Terms.class);
+        when(subscriptionTerms.getId()).thenReturn(2L);
+        when(termsRepository.findAllByIsCurrentTrueAndIsRequiredTrueOrderByTermsTypeAsc())
+                .thenReturn(List.of(nonFaceTerms, subscriptionTerms));
+        when(agreementRepository.findByUserIdAndTermsId(USER_ID, TERMS_ID)).thenReturn(Optional.of(agreement(AGREED_AT)));
+        when(agreementRepository.findByUserIdAndTermsId(USER_ID, 2L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> termsService.requireAllCurrentRequiredAgreements(USER_ID))
+                .isInstanceOf(TermsAgreementRequiredException.class);
     }
 
     private void stubCurrentTerms(Terms terms) {

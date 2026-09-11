@@ -7,6 +7,7 @@ import com.chapchap.subscription.domain.subscription.service.CurrentSubscription
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionPreparationService;
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
 import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
+import com.chapchap.subscription.domain.subscription.service.SettingChangePreviewService;
 import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
@@ -33,25 +34,10 @@ class SettingChangeControllerTest {
         verify(service).change(10L, request);
     }
 
-    @Test
-    void 인증고객의_증액결제확인을_요청한다() {
-        SettingChangeService service = mock(SettingChangeService.class);
-        SubscriptionController controller = controller(service);
-        Authentication authentication = mock(Authentication.class);
-        SettingChangeResponse expected = response(false);
-        when(authentication.getName()).thenReturn("10");
-        when(service.confirm(10L)).thenReturn(expected);
-
-        var result = controller.confirmSettingChange(authentication);
-
-        assertThat(result.data()).isSameAs(expected);
-        verify(service).confirm(10L);
-    }
-
     private SubscriptionController controller(SettingChangeService service) {
         return new SubscriptionController(mock(FirstSubscriptionService.class),
             mock(FirstSubscriptionPreparationService.class), mock(CurrentSubscriptionQueryService.class),
-            mock(SubscriptionCancellationService.class), service);
+            mock(SubscriptionCancellationService.class), service, mock(SettingChangePreviewService.class));
     }
 
     private SettingChangeResponse response(boolean confirmationRequired) {

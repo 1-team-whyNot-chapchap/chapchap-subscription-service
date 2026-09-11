@@ -60,6 +60,7 @@ public class PlanQueryService {
             menu.getMenuSequence(),
             menu.getName(),
             menu.getDescription(),
+            menu.getImageUrl(),
             menu.getAllergenInfo(),
             menu.getNutritionInfo(),
             menu.getIngredientInfo()

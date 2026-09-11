@@ -5,6 +5,7 @@ import com.chapchap.subscription.domain.currentstate.response.CurrentRefundState
 import com.chapchap.subscription.domain.currentstate.response.CurrentSubscriptionStateResponse;
 import com.chapchap.subscription.domain.currentstate.service.CustomerAiCurrentStateQueryService;
 import com.chapchap.subscription.global.response.GlobalResponse;
+import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Customer-AI Current-State 내부 조회 API의 HTTP 진입점이다. */
 @RestController
+@Hidden
 @RequiredArgsConstructor
 @RequestMapping("/api/subscription/internal/v1/current-state")
 public class CustomerAiCurrentStateController {

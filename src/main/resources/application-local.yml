@@ -21,3 +21,7 @@ spring:
       encoding: UTF-8
       mode: always
 #      platform: all
+
+springdoc:
+  swagger-ui:
+    enabled: true

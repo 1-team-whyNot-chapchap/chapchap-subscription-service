@@ -139,6 +139,7 @@ class FirstSubscriptionPreviewTest {
 
         when(timeProvider.now()).thenReturn(LocalDateTime.of(2026, 9, 9, 10, 0));
         when(subscriptionRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(termsService.requireAllCurrentRequiredAgreements(USER_ID)).thenReturn(List.of(mock(UserTermsAgreement.class)));
         when(termsService.requireCurrentAgreement(USER_ID)).thenReturn(mock(UserTermsAgreement.class));
         when(planRepository.findByPublicId(PLAN_ID)).thenReturn(Optional.of(plan));
         when(addressService.requireActiveAddress(USER_ID, ADDRESS_ID)).thenReturn(address);

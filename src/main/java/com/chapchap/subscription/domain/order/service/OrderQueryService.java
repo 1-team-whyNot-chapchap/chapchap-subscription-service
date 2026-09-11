@@ -56,6 +56,7 @@ public class OrderQueryService {
             order.getMenuName(),
             order.getMealQuantity(),
             menu.getDescription(),
+            menu.getImageUrl(),
             menu.getAllergenInfo(),
             menu.getNutritionInfo(),
             menu.getIngredientInfo(),

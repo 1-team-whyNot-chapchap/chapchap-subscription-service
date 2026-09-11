@@ -3,7 +3,7 @@ spring:
     name: subscription-service
 
   profiles:
-    default: local
+    active: local
 
   config:
     import: optional:file:.env[.properties]
@@ -59,3 +59,12 @@ app:
       topic: ${KAFKA_TOPIC_DELIVERY_REFUND:msa4-team1.delivery.refund-events.v1}
       dlt-topic: ${KAFKA_TOPIC_DELIVERY_REFUND_DLT:msa4-team1.delivery.refund-events.v1.DLT}
       group-id: ${KAFKA_CONSUMER_GROUP_DELIVERY_REFUND:subscription-service-delivery-refund-group}
+
+# Springdoc Openapi
+springdoc:
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  swagger-ui:
+    enabled: false
+  api-docs:
+    path: /api-docs

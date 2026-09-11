@@ -13,6 +13,7 @@ import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionPr
 import com.chapchap.subscription.domain.subscription.service.FirstSubscriptionService;
 import com.chapchap.subscription.domain.subscription.service.SubscriptionCancellationService;
 import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
+import com.chapchap.subscription.domain.subscription.service.SettingChangePreviewService;
 import com.chapchap.subscription.global.response.GlobalResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
@@ -32,7 +33,7 @@ class SubscriptionControllerTest {
         SubscriptionController controller = new SubscriptionController(
             mock(FirstSubscriptionService.class), preparationService,
             mock(CurrentSubscriptionQueryService.class), mock(SubscriptionCancellationService.class),
-            mock(SettingChangeService.class)
+            mock(SettingChangeService.class), mock(SettingChangePreviewService.class)
         );
         Authentication authentication = mock(Authentication.class);
         FirstSubscriptionRequest request = mock(FirstSubscriptionRequest.class);
@@ -56,7 +57,7 @@ class SubscriptionControllerTest {
         SubscriptionController controller = new SubscriptionController(
             mock(FirstSubscriptionService.class), mock(FirstSubscriptionPreparationService.class),
             mock(CurrentSubscriptionQueryService.class), cancellationService,
-            mock(SettingChangeService.class)
+            mock(SettingChangeService.class), mock(SettingChangePreviewService.class)
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn("10");
@@ -84,7 +85,7 @@ class SubscriptionControllerTest {
                 mock(FirstSubscriptionPreparationService.class),
                 queryService,
                  mock(SubscriptionCancellationService.class),
-                 mock(SettingChangeService.class)
+                 mock(SettingChangeService.class), mock(SettingChangePreviewService.class)
         );
         Authentication authentication = mock(Authentication.class);
         CurrentSubscriptionResponse current = new CurrentSubscriptionResponse(
@@ -116,7 +117,7 @@ class SubscriptionControllerTest {
                 mock(FirstSubscriptionPreparationService.class),
                 queryService,
                  mock(SubscriptionCancellationService.class),
-                 mock(SettingChangeService.class)
+                 mock(SettingChangeService.class), mock(SettingChangePreviewService.class)
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn("10");

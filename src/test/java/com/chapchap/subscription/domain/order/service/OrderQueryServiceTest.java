@@ -85,6 +85,7 @@ class OrderQueryServiceTest {
 
         assertThat(response.menuName()).isEqualTo("주문 당시 메뉴명");
         assertThat(response.menuDescription()).isEqualTo("현재 고정 메뉴 설명");
+        assertThat(response.imageUrl()).isEqualTo("https://example.com/menu.jpg");
         assertThat(response.recipientName()).isEqualTo("주문 당시 수령인");
         assertThat(response.amount()).isEqualTo(17_800L);
         assertThat(response.refund()).isNull();
@@ -205,6 +206,7 @@ class OrderQueryServiceTest {
         lenient().when(menu.getPlanId()).thenReturn(planId);
         lenient().when(menu.getMenuSequence()).thenReturn(8);
         lenient().when(menu.getDescription()).thenReturn("현재 고정 메뉴 설명");
+        lenient().when(menu.getImageUrl()).thenReturn("https://example.com/menu.jpg");
         lenient().when(menu.getAllergenInfo()).thenReturn("알레르기 정보");
         lenient().when(menu.getNutritionInfo()).thenReturn("영양 정보");
         lenient().when(menu.getIngredientInfo()).thenReturn("원재료 정보");

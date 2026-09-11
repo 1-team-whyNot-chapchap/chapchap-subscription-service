@@ -3,6 +3,10 @@ package com.chapchap.subscription.global.kafka.delivery;
 import com.chapchap.subscription.domain.payment.entity.RefundStatus;
 import com.chapchap.subscription.domain.payment.service.DeliveryRefundCommand;
 import com.chapchap.subscription.domain.payment.service.DeliveryRefundService;
+import com.chapchap.subscription.global.scheduler.DeliveryOrderKafkaScheduler;
+import com.chapchap.subscription.global.scheduler.RegularPaymentScheduler;
+import com.chapchap.subscription.global.scheduler.SubscriptionPeriodTransitionScheduler;
+import com.chapchap.subscription.global.scheduler.SubscriptionTerminationScheduler;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -19,6 +23,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.Duration;
 import java.util.List;
@@ -33,14 +39,20 @@ import static org.mockito.Mockito.when;
 
 /** 로컬 Docker Kafka가 있을 때만 Delivery 환불 Consumer와 DLT를 실제 검증한다. */
 @SpringBootTest(properties = {
-    "app.kafka.delivery-refund.group-id=subscription-service-delivery-refund-it-group"
+    "spring.kafka.listener.auto-startup=true",
+    "spring.task.scheduling.enabled=false"
 })
-@ActiveProfiles("local")
+@ActiveProfiles("test")
 @EnabledIfSystemProperty(
     named = "chapchap.delivery-refund-kafka-integration.enabled",
     matches = "true"
 )
 class DeliveryRefundKafkaBrokerIntegrationTest {
+    private static final String TEST_RUN_ID = UUID.randomUUID().toString();
+    private static final String TEST_TOPIC = "msa4-team1.delivery.refund-events.it-" + TEST_RUN_ID;
+    private static final String TEST_DLT_TOPIC = TEST_TOPIC + ".DLT";
+    private static final String TEST_GROUP_ID = "subscription-service-delivery-refund-it-" + TEST_RUN_ID;
+
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
@@ -49,6 +61,25 @@ class DeliveryRefundKafkaBrokerIntegrationTest {
 
     @MockitoBean
     private DeliveryRefundService service;
+
+    @MockitoBean
+    private DeliveryOrderKafkaScheduler deliveryOrderKafkaScheduler;
+
+    @MockitoBean
+    private RegularPaymentScheduler regularPaymentScheduler;
+
+    @MockitoBean
+    private SubscriptionPeriodTransitionScheduler subscriptionPeriodTransitionScheduler;
+
+    @MockitoBean
+    private SubscriptionTerminationScheduler subscriptionTerminationScheduler;
+
+    @DynamicPropertySource
+    static void deliveryRefundKafkaProperties(DynamicPropertyRegistry registry) {
+        registry.add("app.kafka.delivery-refund.topic", () -> TEST_TOPIC);
+        registry.add("app.kafka.delivery-refund.dlt-topic", () -> TEST_DLT_TOPIC);
+        registry.add("app.kafka.delivery-refund.group-id", () -> TEST_GROUP_ID);
+    }
 
     @Test
     void 정상_Event를_실제_Broker에서_소비해_업무서비스에_전달한다() throws Exception {

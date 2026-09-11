@@ -46,4 +46,8 @@ out/
 .env.*
 !.env.example
 
+# 로컬 PortOne 검증 도구
+portone-billing-test.html
+portone-test-proxy.mjs
+
 AGENTS.md

@@ -116,12 +116,14 @@ public class FirstSubscriptionPreparationService {
         }
         rejectActive(existing);
 
+        List<UserTermsAgreement> requiredAgreements = termsService.requireAllCurrentRequiredAgreements(userId);
         UserTermsAgreement agreement = termsService.requireCurrentAgreement(userId);
         Plan plan = planRepository.findByPublicId(request.planId()).orElseThrow(PlanNotFoundException::new);
         Map<DeliveryWeekday, ValidatedCondition> conditions = validateConditions(userId, request);
         requireCurrentPaymentMethod(userId);
 
         Subscription subscription = prepareSubscription(userId, existing, referenceAt);
+        termsService.preserveContractTermsAgreements(subscription.getId(), requiredAgreements);
         int periodSequence = nextPeriodSequence(subscription.getId());
         int settingSequence = nextSettingSequence(subscription.getId());
         SubscriptionSchedule schedule = calculateSchedule(referenceAt, conditions.keySet());
@@ -183,6 +185,7 @@ public class FirstSubscriptionPreparationService {
         Subscription existing = subscriptionRepository.findByUserId(userId).orElse(null);
         rejectActive(existing);
 
+        termsService.requireAllCurrentRequiredAgreements(userId);
         termsService.requireCurrentAgreement(userId);
         Plan plan = planRepository.findByPublicId(request.planId()).orElseThrow(PlanNotFoundException::new);
         Map<DeliveryWeekday, ValidatedCondition> conditions = validateConditions(userId, request);

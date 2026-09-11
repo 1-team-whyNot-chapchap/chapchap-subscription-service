@@ -556,6 +556,7 @@ class FirstSubscriptionConcurrencyIntegrationTest {
             ReflectionTestUtils.setField(menu, "menuSequence", sequence);
             ReflectionTestUtils.setField(menu, "name", "동시성 테스트 메뉴 " + fixtureSuffix + "-" + sequence);
             ReflectionTestUtils.setField(menu, "description", "동시 신청 통합 테스트 메뉴");
+            ReflectionTestUtils.setField(menu, "imageUrl", "https://example.com/menus/" + fixtureSuffix + "-" + sequence + ".jpg");
             ReflectionTestUtils.setField(menu, "allergenInfo", "없음");
             ReflectionTestUtils.setField(menu, "nutritionInfo", "테스트 영양정보");
             ReflectionTestUtils.setField(menu, "ingredientInfo", "테스트 원재료정보");
