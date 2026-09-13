@@ -1,6 +1,8 @@
 package com.chapchap.subscription.domain.order.controller;
 
 import com.chapchap.subscription.domain.order.response.OrderDetailResponse;
+import com.chapchap.subscription.domain.order.response.OrderCalendarResponse;
+import com.chapchap.subscription.domain.order.response.OrderHistoryResponse;
 import com.chapchap.subscription.domain.order.response.OrderListResponse;
 import com.chapchap.subscription.domain.order.service.OrderQueryService;
 import com.chapchap.subscription.global.config.openapi.CustomApiResponse;
@@ -17,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -40,6 +43,46 @@ public class OrderController {
     public GlobalResponse<OrderListResponse> getOrders(Authentication authentication) {
         return GlobalResponse.success(
             orderQueryService.getOrders(Long.parseLong(authentication.getName()))
+        );
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/calendar")
+    @Operation(summary = "월별 주문 달력 조회", description = "인증 고객의 선택 월 주문을 달력 표시용 최소 정보로 모두 조회합니다.")
+    @CustomApiResponse({
+        ErrorCode.INVALID_REQUEST,
+        ErrorCode.AUTHENTICATION_REQUIRED,
+        ErrorCode.DATABASE_ERROR,
+        ErrorCode.INTERNAL_SERVER_ERROR
+    })
+    public GlobalResponse<OrderCalendarResponse> getOrderCalendar(
+        Authentication authentication,
+        @Parameter(description = "조회할 배송월", required = true, example = "2026-09")
+        @RequestParam(required = false) String month
+    ) {
+        return GlobalResponse.success(
+            orderQueryService.getOrderCalendar(Long.parseLong(authentication.getName()), month)
+        );
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/history")
+    @Operation(summary = "월별 주문 목록 페이지 조회", description = "인증 고객의 선택 월 주문을 3건씩 조회합니다.")
+    @CustomApiResponse({
+        ErrorCode.INVALID_REQUEST,
+        ErrorCode.AUTHENTICATION_REQUIRED,
+        ErrorCode.DATABASE_ERROR,
+        ErrorCode.INTERNAL_SERVER_ERROR
+    })
+    public GlobalResponse<OrderHistoryResponse> getOrderHistory(
+        Authentication authentication,
+        @Parameter(description = "조회할 배송월", required = true, example = "2026-09")
+        @RequestParam(required = false) String month,
+        @Parameter(description = "1부터 시작하는 페이지", required = true, example = "1")
+        @RequestParam(required = false) Integer page
+    ) {
+        return GlobalResponse.success(
+            orderQueryService.getOrderHistory(Long.parseLong(authentication.getName()), month, page)
         );
     }
 
