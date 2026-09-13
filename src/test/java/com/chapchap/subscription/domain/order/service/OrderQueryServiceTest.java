@@ -5,6 +5,8 @@ import com.chapchap.subscription.domain.order.entity.OrderDeliveryTimeSlot;
 import com.chapchap.subscription.domain.order.entity.OrderStatus;
 import com.chapchap.subscription.domain.order.repository.OrderRepository;
 import com.chapchap.subscription.domain.order.response.OrderDetailResponse;
+import com.chapchap.subscription.domain.order.response.OrderCalendarResponse;
+import com.chapchap.subscription.domain.order.response.OrderHistoryResponse;
 import com.chapchap.subscription.domain.order.response.OrderListResponse;
 import com.chapchap.subscription.domain.payment.entity.Refund;
 import com.chapchap.subscription.domain.payment.entity.RefundStatus;
@@ -17,7 +19,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,6 +31,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -70,6 +78,58 @@ class OrderQueryServiceTest {
                 "22222222-2222-4222-8222-222222222222"
             );
         assertThat(response.orders().getFirst().amount()).isEqualTo(17_800L);
+    }
+
+    @Test
+    void 월별_달력은_선택_월의_모든_주문을_최소_필드로_반환한다() {
+        Order recent = calendarOrder("11111111-1111-4111-8111-111111111111", LocalDate.of(2026, 9, 30));
+        Order older = calendarOrder("22222222-2222-4222-8222-222222222222", LocalDate.of(2026, 9, 2));
+        when(orderRepository.findAllByUserIdAndDeliveryDateGreaterThanEqualAndDeliveryDateLessThanOrderByDeliveryDateDescIdDesc(
+            USER_ID, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 1)
+        )).thenReturn(List.of(recent, older));
+
+        OrderCalendarResponse response = service.getOrderCalendar(USER_ID, "2026-09");
+
+        assertThat(response.month()).isEqualTo("2026-09");
+        assertThat(response.orders()).extracting(OrderCalendarResponse.OrderItemResponse::orderId)
+            .containsExactly("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222");
+    }
+
+    @Test
+    void 월별_목록은_서버_페이지_크기_3과_정렬을_사용한다() {
+        Order first = listOrder("11111111-1111-4111-8111-111111111111", LocalDate.of(2026, 9, 30), 17_800L);
+        Order second = listOrder("22222222-2222-4222-8222-222222222222", LocalDate.of(2026, 9, 29), 8_900L);
+        when(orderRepository.findByUserIdAndDeliveryDateGreaterThanEqualAndDeliveryDateLessThan(
+            eq(USER_ID), eq(LocalDate.of(2026, 9, 1)), eq(LocalDate.of(2026, 10, 1)), any(Pageable.class)
+        )).thenReturn(new PageImpl<>(List.of(first, second), Pageable.ofSize(3).withPage(1), 8));
+
+        OrderHistoryResponse response = service.getOrderHistory(USER_ID, "2026-09", 2);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(orderRepository).findByUserIdAndDeliveryDateGreaterThanEqualAndDeliveryDateLessThan(
+            eq(USER_ID), eq(LocalDate.of(2026, 9, 1)), eq(LocalDate.of(2026, 10, 1)), pageable.capture()
+        );
+        assertThat(pageable.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(3);
+        assertThat(pageable.getValue().getSort().getOrderFor("deliveryDate").getDirection().isDescending()).isTrue();
+        assertThat(pageable.getValue().getSort().getOrderFor("id").getDirection().isDescending()).isTrue();
+        assertThat(response)
+            .extracting(OrderHistoryResponse::page, OrderHistoryResponse::size, OrderHistoryResponse::totalElements, OrderHistoryResponse::totalPages, OrderHistoryResponse::hasPrevious, OrderHistoryResponse::hasNext)
+            .containsExactly(2, 3, 8L, 3, true, true);
+    }
+
+    @Test
+    void 잘못된_월과_페이지는_DB를_조회하지_않는다() {
+        assertThatThrownBy(() -> service.getOrderCalendar(USER_ID, "2026-9"))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.getOrderCalendar(USER_ID, null))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.getOrderHistory(USER_ID, "2026-09", 0))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.getOrderHistory(USER_ID, "2026-09", null))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        verifyNoInteractions(orderRepository, menuRepository, refundRepository);
     }
 
     @Test
@@ -175,6 +235,14 @@ class OrderQueryServiceTest {
         when(order.getDeliveryDate()).thenReturn(deliveryDate);
         when(order.getStatus()).thenReturn(OrderStatus.ACTIVE);
         when(order.getActualAllocatedAmount()).thenReturn(amount);
+        return order;
+    }
+
+    private Order calendarOrder(String publicId, LocalDate deliveryDate) {
+        Order order = mock(Order.class);
+        when(order.getPublicId()).thenReturn(publicId);
+        when(order.getDeliveryDate()).thenReturn(deliveryDate);
+        when(order.getStatus()).thenReturn(OrderStatus.ACTIVE);
         return order;
     }
 

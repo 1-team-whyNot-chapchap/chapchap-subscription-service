@@ -3,6 +3,8 @@ package com.chapchap.subscription.domain.order.service;
 import com.chapchap.subscription.domain.order.entity.Order;
 import com.chapchap.subscription.domain.order.repository.OrderRepository;
 import com.chapchap.subscription.domain.order.response.OrderDetailResponse;
+import com.chapchap.subscription.domain.order.response.OrderCalendarResponse;
+import com.chapchap.subscription.domain.order.response.OrderHistoryResponse;
 import com.chapchap.subscription.domain.order.response.OrderListResponse;
 import com.chapchap.subscription.domain.payment.entity.Refund;
 import com.chapchap.subscription.domain.payment.entity.RefundType;
@@ -13,13 +15,19 @@ import com.chapchap.subscription.global.exception.order.OrderNotFoundException;
 import com.chapchap.subscription.global.validation.PublicIdFormat;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.YearMonth;
 
 /** 인증 고객의 주문 목록과 주문 당시 상세 정보를 읽기 전용으로 조회한다. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class OrderQueryService {
+    private static final int ORDER_HISTORY_PAGE_SIZE = 3;
     private final OrderRepository orderRepository;
     private final MenuRepository menuRepository;
     private final RefundRepository refundRepository;
@@ -31,6 +39,45 @@ public class OrderQueryService {
                 .stream()
                 .map(this::toListItem)
                 .toList()
+        );
+    }
+
+    public OrderCalendarResponse getOrderCalendar(Long userId, String month) {
+        validateUserId(userId);
+        YearMonth requestedMonth = requireMonth(month);
+        return new OrderCalendarResponse(
+            requestedMonth.toString(),
+            orderRepository.findAllByUserIdAndDeliveryDateGreaterThanEqualAndDeliveryDateLessThanOrderByDeliveryDateDescIdDesc(
+                userId,
+                requestedMonth.atDay(1),
+                requestedMonth.plusMonths(1).atDay(1)
+            ).stream().map(this::toCalendarItem).toList()
+        );
+    }
+
+    public OrderHistoryResponse getOrderHistory(Long userId, String month, Integer page) {
+        validateUserId(userId);
+        YearMonth requestedMonth = requireMonth(month);
+        int requestedPage = requirePage(page);
+        Page<Order> orders = orderRepository.findByUserIdAndDeliveryDateGreaterThanEqualAndDeliveryDateLessThan(
+            userId,
+            requestedMonth.atDay(1),
+            requestedMonth.plusMonths(1).atDay(1),
+            PageRequest.of(
+                requestedPage - 1,
+                ORDER_HISTORY_PAGE_SIZE,
+                Sort.by(Sort.Order.desc("deliveryDate"), Sort.Order.desc("id"))
+            )
+        );
+        return new OrderHistoryResponse(
+            requestedMonth.toString(),
+            orders.getContent().stream().map(this::toListItem).toList(),
+            requestedPage,
+            ORDER_HISTORY_PAGE_SIZE,
+            orders.getTotalElements(),
+            orders.getTotalPages(),
+            orders.hasPrevious(),
+            orders.hasNext()
         );
     }
 
@@ -80,6 +127,28 @@ public class OrderQueryService {
             order.getStatus(),
             order.getActualAllocatedAmount()
         );
+    }
+
+    private OrderCalendarResponse.OrderItemResponse toCalendarItem(Order order) {
+        return new OrderCalendarResponse.OrderItemResponse(
+            order.getPublicId(),
+            order.getDeliveryDate(),
+            order.getStatus()
+        );
+    }
+
+    private YearMonth requireMonth(String value) {
+        if (value == null || !value.matches("\\d{4}-(0[1-9]|1[0-2])")) {
+            throw new IllegalArgumentException("조회할 월은 YYYY-MM 형식이어야 합니다.");
+        }
+        return YearMonth.parse(value);
+    }
+
+    private int requirePage(Integer value) {
+        if (value == null || value < 1) {
+            throw new IllegalArgumentException("페이지는 1 이상이어야 합니다.");
+        }
+        return value;
     }
 
     private void validateMenuReference(Order order, Menu menu) {
