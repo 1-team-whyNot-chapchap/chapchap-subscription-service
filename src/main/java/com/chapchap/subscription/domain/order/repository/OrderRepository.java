@@ -6,6 +6,8 @@ import com.chapchap.subscription.domain.order.entity.OrderStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -14,6 +16,19 @@ import java.util.Optional;
 /** 주문의 저장과 이용 기간별 최초 주문 존재 여부 조회를 담당한다. */
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findAllByUserIdOrderByDeliveryDateDescIdDesc(Long userId);
+
+    List<Order> findAllByUserIdAndDeliveryDateGreaterThanEqualAndDeliveryDateLessThanOrderByDeliveryDateDescIdDesc(
+        Long userId,
+        LocalDate startDate,
+        LocalDate endDate
+    );
+
+    Page<Order> findByUserIdAndDeliveryDateGreaterThanEqualAndDeliveryDateLessThan(
+        Long userId,
+        LocalDate startDate,
+        LocalDate endDate,
+        Pageable pageable
+    );
 
     Optional<Order> findByPublicIdAndUserId(String publicId, Long userId);
 

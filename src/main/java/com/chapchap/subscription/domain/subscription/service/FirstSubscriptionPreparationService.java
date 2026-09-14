@@ -175,7 +175,7 @@ public class FirstSubscriptionPreparationService {
     /**
      * 첫 구독 신청 조건으로 예상 이용 기간과 결제금액을 조회한다.
      *
-     * <p>실제 첫 결제와 같은 입력 검증·일정·메뉴·주문 단위 금액 계산을 사용하지만, 구독·주문·결제
+     * <p>현재 결제수단은 요구하지 않고 실제 첫 결제와 같은 신청 입력 검증·일정·메뉴·주문 단위 금액 계산을 사용하지만, 구독·주문·결제
      * 데이터를 만들거나 외부 결제·Kafka를 호출하지 않는다. Preview 결과는 실제 결제 금액을 고정하지
      * 않으며, 실제 요청은 별도의 처리 기준 시각으로 다시 계산한다.</p>
      */
@@ -189,7 +189,6 @@ public class FirstSubscriptionPreparationService {
         termsService.requireCurrentAgreement(userId);
         Plan plan = planRepository.findByPublicId(request.planId()).orElseThrow(PlanNotFoundException::new);
         Map<DeliveryWeekday, ValidatedCondition> conditions = validateConditions(userId, request);
-        requireCurrentPaymentMethod(userId);
 
         SubscriptionSchedule schedule = calculateSchedule(referenceAt, conditions.keySet());
         boolean applyFirstDiscount = existing == null || !existing.isFirstSubscriptionDiscountUsed();

@@ -96,7 +96,7 @@ public class SubscriptionController {
     /** 실제 첫 결제 전에 인증 고객의 신청 조건으로 예상 결제금액을 조회한다. */
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/preview")
-    @Operation(summary = "첫 구독 예상 결제금액 조회", description = "저장·외부 결제 호출 없이 신청 조건의 예상 이용 기간과 결제금액을 계산합니다. 실제 결제는 별도 신청 요청에서 다시 계산합니다.")
+    @Operation(summary = "첫 구독 예상 결제금액 조회", description = "현재 결제수단의 등록·선택 없이 신청 조건의 예상 이용 기간과 결제금액을 계산합니다. 저장·외부 결제를 호출하지 않으며, 실제 결제는 별도 신청 요청에서 현재 결제수단을 확인하고 금액을 다시 계산합니다.")
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
         ErrorCode.INVALID_REQUEST,
@@ -105,7 +105,6 @@ public class SubscriptionController {
         ErrorCode.PLAN_NOT_FOUND,
         ErrorCode.SUBSCRIPTION_ALREADY_ACTIVE,
         ErrorCode.ADDRESS_NOT_FOUND,
-        ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED,
         ErrorCode.DATABASE_ERROR,
         ErrorCode.INTERNAL_SERVER_ERROR
     })

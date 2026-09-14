@@ -8,6 +8,8 @@ import com.chapchap.subscription.domain.payment.entity.PaymentMethodStatus;
 import com.chapchap.subscription.domain.payment.repository.PaymentMethodRepository;
 import com.chapchap.subscription.domain.payment.repository.PaymentTransactionRepository;
 import com.chapchap.subscription.domain.payment.service.FirstPaymentPreparationService;
+import com.chapchap.subscription.domain.payment.service.exception.CurrentPaymentMethodUnavailableException;
+import com.chapchap.subscription.global.exception.ErrorCode;
 import com.chapchap.subscription.domain.subscription.entity.DeliveryTimeSlot;
 import com.chapchap.subscription.domain.subscription.entity.DeliveryWeekday;
 import com.chapchap.subscription.domain.subscription.entity.Menu;
@@ -82,7 +84,7 @@ class FirstSubscriptionPreviewTest {
     }
 
     @Test
-    void 예상금액은_실제_첫주문과_같은_기간_할인_산식으로_계산하고_업무데이터를_저장하지_않는다() {
+    void 현재카드_없이_예상금액을_기존_기간_할인_산식으로_조회하고_업무데이터를_저장하지_않는다() {
         preparePreviewDependencies();
 
         FirstSubscriptionPreviewResponse response = service.preview(USER_ID, request());
@@ -98,7 +100,31 @@ class FirstSubscriptionPreviewTest {
         verify(subscriptionRepository, never()).save(any());
         verifyNoInteractions(
             periodRepository, settingRepository, conditionRepository, historyRepository,
-            paymentTransactionRepository, firstOrderService, firstPaymentPreparationService
+            paymentMethodRepository, paymentTransactionRepository, firstOrderService, firstPaymentPreparationService
+        );
+    }
+
+    @Test
+    void 실제_신청은_현재카드가_없으면_PAYMENT_007로_거절하고_업무데이터를_만들지_않는다() {
+        when(termsService.requireAllCurrentRequiredAgreements(USER_ID))
+            .thenReturn(List.of(mock(UserTermsAgreement.class)));
+        when(termsService.requireCurrentAgreement(USER_ID)).thenReturn(mock(UserTermsAgreement.class));
+        when(planRepository.findByPublicId(PLAN_ID)).thenReturn(Optional.of(mock(Plan.class)));
+        when(addressService.requireActiveAddress(USER_ID, ADDRESS_ID)).thenReturn(mock(Address.class));
+
+        assertThatThrownBy(() -> service.prepare(USER_ID, request()))
+            .isInstanceOfSatisfying(CurrentPaymentMethodUnavailableException.class,
+                error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED));
+
+        verify(paymentMethodRepository).existsByUserIdAndStatusAndIsCurrentTrueAndDeletedAtIsNull(
+            USER_ID, PaymentMethodStatus.AVAILABLE
+        );
+        verify(subscriptionRepository, never()).save(any());
+        verify(termsService, never()).preserveContractTermsAgreements(any(), any());
+        verifyNoInteractions(
+            periodRepository, settingRepository, conditionRepository, historyRepository,
+            paymentTransactionRepository, firstOrderService, firstPaymentPreparationService,
+            menuRepository, holidayRepository
         );
     }
 
@@ -143,9 +169,6 @@ class FirstSubscriptionPreviewTest {
         when(termsService.requireCurrentAgreement(USER_ID)).thenReturn(mock(UserTermsAgreement.class));
         when(planRepository.findByPublicId(PLAN_ID)).thenReturn(Optional.of(plan));
         when(addressService.requireActiveAddress(USER_ID, ADDRESS_ID)).thenReturn(address);
-        when(paymentMethodRepository.existsByUserIdAndStatusAndIsCurrentTrueAndDeletedAtIsNull(
-            USER_ID, PaymentMethodStatus.AVAILABLE
-        )).thenReturn(true);
         when(holidayRepository.findAllByHolidayDateBetween(any(LocalDate.class), any(LocalDate.class)))
             .thenReturn(List.of());
         when(menuRepository.findByPlanIdAndMenuSequence(eq(101L), anyInt())).thenReturn(Optional.of(menu));

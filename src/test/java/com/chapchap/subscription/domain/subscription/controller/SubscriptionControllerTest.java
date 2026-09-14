@@ -15,6 +15,8 @@ import com.chapchap.subscription.domain.subscription.service.SubscriptionCancell
 import com.chapchap.subscription.domain.subscription.service.SettingChangeService;
 import com.chapchap.subscription.domain.subscription.service.SettingChangePreviewService;
 import com.chapchap.subscription.global.response.GlobalResponse;
+import com.chapchap.subscription.global.config.openapi.CustomApiResponse;
+import com.chapchap.subscription.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
 
@@ -26,6 +28,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SubscriptionControllerTest {
+
+    @Test
+    void 미리보기_OpenAPI는_카드필수_오류를_제외하고_실제결제는_유지한다() throws Exception {
+        var preview = SubscriptionController.class.getMethod(
+            "preview", Authentication.class, FirstSubscriptionRequest.class);
+        var create = SubscriptionController.class.getMethod(
+            "create", Authentication.class, FirstSubscriptionRequest.class);
+
+        assertThat(preview.getAnnotation(CustomApiResponse.class).value())
+            .doesNotContain(ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED);
+        assertThat(create.getAnnotation(CustomApiResponse.class).value())
+            .contains(ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED);
+    }
 
     @Test
     void 인증_사용자_ID로_첫_구독_예상금액을_조회한다() {
