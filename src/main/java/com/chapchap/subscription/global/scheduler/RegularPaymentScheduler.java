@@ -19,12 +19,12 @@ public class RegularPaymentScheduler {
         this.timeProvider = timeProvider;
     }
 
-    @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "${REGULAR_PAYMENT_INITIAL_CRON}", zone = "Asia/Seoul")
     public void executeInitialPayments() {
         regularPaymentService.executeInitialPayments(timeProvider.now());
     }
 
-    @Scheduled(cron = "0 0 13 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "${REGULAR_PAYMENT_RETRY_CRON}", zone = "Asia/Seoul")
     public void executeRetryPayments() {
         regularPaymentService.executeRetryPayments(timeProvider.now());
     }
