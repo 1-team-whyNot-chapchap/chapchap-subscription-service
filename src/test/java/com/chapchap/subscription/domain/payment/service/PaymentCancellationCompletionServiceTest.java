@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class PaymentCancellationCompletionServiceTest {
@@ -57,15 +58,13 @@ class PaymentCancellationCompletionServiceTest {
 
         RefundStatus status = service.complete(result);
 
-        assertThat(status).isEqualTo(RefundStatus.COMPLETED);
+        assertThat(status).isEqualTo(RefundStatus.FINALIZATION_PENDING);
         assertThat(fixture.cancellation().getStatus()).isEqualTo(PaymentTransactionStatus.SUCCESS);
         assertThat(fixture.original().getCancelableAmount()).isZero();
         assertThat(fixture.allocation().currentCancelableAmount()).isZero();
         assertThat(fixture.refund().getSuccessfulRefundAmount()).isEqualTo(10_000L);
         verify(attempts).save(any());
-        verify(customerRefundPublisher).publishTerminalAfterCommit(
-            fixture.refund(), fixture.cancellation(), result.respondedAt()
-        );
+        verifyNoInteractions(customerRefundPublisher);
     }
 
     @Test

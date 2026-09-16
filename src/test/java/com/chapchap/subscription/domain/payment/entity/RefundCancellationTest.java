@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RefundCancellationTest {
     @Test
-    void 모든_원결제_취소금액이_누적되면_환불을_완료한다() {
+    void 기간취소의_모든_원결제_취소금액이_누적되면_최종확정대기로_보존한다() {
         Refund refund = Refund.createPeriodCancellation(
             1L, 2L, RefundType.CANCELLATION_BEFORE_START, 10_000L
         );
@@ -19,9 +19,13 @@ class RefundCancellationTest {
         LocalDateTime completedAt = LocalDateTime.of(2026, 9, 6, 12, 1);
         refund.addSuccessfulAmount(6_000L, completedAt);
 
-        assertThat(refund.getStatus()).isEqualTo(RefundStatus.COMPLETED);
+        assertThat(refund.getStatus()).isEqualTo(RefundStatus.FINALIZATION_PENDING);
         assertThat(refund.getSuccessfulRefundAmount()).isEqualTo(10_000L);
         assertThat(refund.getCompletedAt()).isEqualTo(completedAt);
+
+        refund.finalizeSubscriptionCancellation();
+
+        assertThat(refund.getStatus()).isEqualTo(RefundStatus.COMPLETED);
     }
 
     @Test

@@ -174,12 +174,32 @@ class SubscriptionCancellationServiceTest {
             new PreparedPeriodRefund(30L, RefundStatus.PENDING, List.of(40L))
         );
         when(execution.execute(40L)).thenReturn(executed);
-        when(completion.complete(executed)).thenReturn(RefundStatus.COMPLETED);
+        when(completion.complete(executed)).thenReturn(RefundStatus.FINALIZATION_PENDING);
         when(responses.create(1L, 12L, SubscriptionCancellationType.CANCELLATION_BEFORE_START,
             prepared.referenceAt(), 30L)).thenReturn(expected);
 
         assertThat(service.cancel(10L)).isSameAs(expected);
         verify(preStartCompletion).complete(prepared);
+    }
+
+    @Test
+    void 최종확정대기_환불은_외부환불을_재호출하지_않고_구독확정만_재시도한다() {
+        Subscription subscription = scheduledSubscription();
+        SubscriptionCancellationPreparation prepared = preparation();
+        SubscriptionCancellationResponse expected = org.mockito.Mockito.mock(SubscriptionCancellationResponse.class);
+        when(subscriptions.findByUserId(10L)).thenReturn(Optional.of(subscription));
+        when(preStart.prepare(10L)).thenReturn(prepared);
+        when(refundPreparation.prepare(prepared)).thenReturn(
+            new PreparedPeriodRefund(30L, RefundStatus.FINALIZATION_PENDING, List.of())
+        );
+        when(responses.create(1L, 12L, SubscriptionCancellationType.CANCELLATION_BEFORE_START,
+            prepared.referenceAt(), 30L)).thenReturn(expected);
+
+        assertThat(service.cancel(10L)).isSameAs(expected);
+
+        verify(preStartCompletion).complete(prepared);
+        verify(execution, never()).execute(org.mockito.ArgumentMatchers.anyLong());
+        verify(completion, never()).complete(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

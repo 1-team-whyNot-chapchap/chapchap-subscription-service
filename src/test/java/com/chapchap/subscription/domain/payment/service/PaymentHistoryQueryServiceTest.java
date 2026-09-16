@@ -211,6 +211,17 @@ class PaymentHistoryQueryServiceTest {
     }
 
     @Test
+    void 최종확정대기_환불은_고객_환불이력에_노출하지_않는다() {
+        Subscription subscription = subscription();
+        Refund refund = refund(40L, RefundStatus.FINALIZATION_PENDING);
+        when(subscriptionRepository.findByUserId(USER_ID)).thenReturn(Optional.of(subscription));
+        when(refundRepository.findAllBySubscriptionIdOrderByRequestedAtDescIdDesc(SUBSCRIPTION_ID))
+            .thenReturn(List.of(refund));
+
+        assertThat(service.getRefunds(USER_ID).refunds()).isEmpty();
+    }
+
+    @Test
     void 환불_상세는_연결된_취소_거래와_원_결제_공개_식별자를_반환한다() {
         Subscription subscription = subscription();
         Refund refund = refund(40L, RefundStatus.REVIEW_REQUIRED);
@@ -255,6 +266,18 @@ class PaymentHistoryQueryServiceTest {
         when(subscriptionRepository.findByUserId(USER_ID)).thenReturn(Optional.of(subscription));
         when(refundRepository.findByPublicIdAndSubscriptionId(REFUND_ID, SUBSCRIPTION_ID))
             .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getRefund(USER_ID, REFUND_ID))
+            .isInstanceOf(RefundHistoryNotFoundException.class);
+    }
+
+    @Test
+    void 최종확정대기_환불_상세는_조회할_수_없다() {
+        Subscription subscription = subscription();
+        Refund refund = refund(40L, RefundStatus.FINALIZATION_PENDING);
+        when(subscriptionRepository.findByUserId(USER_ID)).thenReturn(Optional.of(subscription));
+        when(refundRepository.findByPublicIdAndSubscriptionId(REFUND_ID, SUBSCRIPTION_ID))
+            .thenReturn(Optional.of(refund));
 
         assertThatThrownBy(() -> service.getRefund(USER_ID, REFUND_ID))
             .isInstanceOf(RefundHistoryNotFoundException.class);
