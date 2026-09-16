@@ -99,6 +99,9 @@ public class PeriodRefundPreparationService {
         if (refund.getStatus() == RefundStatus.COMPLETED) {
             return new PreparedPeriodRefund(refund.getId(), refund.getStatus(), List.of());
         }
+        if (refund.getStatus() == RefundStatus.FINALIZATION_PENDING) {
+            return new PreparedPeriodRefund(refund.getId(), refund.getStatus(), List.of());
+        }
         if (refund.getStatus() == RefundStatus.FAILED) {
             refund.retry();
             PaymentTransaction failed = payments.findAllByRefundIdOrderByOccurredAtAscIdAsc(refund.getId())

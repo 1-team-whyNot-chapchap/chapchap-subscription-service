@@ -6,6 +6,7 @@ import com.chapchap.subscription.domain.payment.entity.PaymentTransaction;
 import com.chapchap.subscription.domain.payment.entity.PaymentTransactionStatus;
 import com.chapchap.subscription.domain.payment.entity.PaymentTransactionType;
 import com.chapchap.subscription.domain.payment.entity.Refund;
+import com.chapchap.subscription.domain.payment.entity.RefundStatus;
 import com.chapchap.subscription.domain.payment.repository.PaymentAttemptRepository;
 import com.chapchap.subscription.domain.payment.repository.PaymentMethodRepository;
 import com.chapchap.subscription.domain.payment.repository.PaymentTransactionRepository;
@@ -93,6 +94,7 @@ public class PaymentHistoryQueryService {
                 return new RefundListResponse(
                     refundRepository.findAllBySubscriptionIdOrderByRequestedAtDescIdDesc(subscriptionId)
                         .stream()
+                        .filter(this::isCustomerVisible)
                         .map(refund -> toRefundListItem(subscriptionId, refund))
                         .toList()
                 );
@@ -107,6 +109,7 @@ public class PaymentHistoryQueryService {
             .orElseThrow(RefundHistoryNotFoundException::new);
         Long subscriptionId = requirePositive(subscription.getId(), "구독");
         Refund refund = refundRepository.findByPublicIdAndSubscriptionId(refundId, subscriptionId)
+            .filter(this::isCustomerVisible)
             .orElseThrow(RefundHistoryNotFoundException::new);
         Long internalRefundId = requirePositive(refund.getId(), "환불");
         List<PaymentTransaction> cancellations = paymentTransactionRepository
@@ -241,6 +244,10 @@ public class PaymentHistoryQueryService {
         if (!subscriptionId.equals(refund.getSubscriptionId())) {
             throw inconsistentData();
         }
+    }
+
+    private boolean isCustomerVisible(Refund refund) {
+        return refund.getStatus() != RefundStatus.FINALIZATION_PENDING;
     }
 
     private boolean isOriginalPayment(PaymentTransactionType type) {

@@ -6,6 +6,8 @@ import com.chapchap.subscription.domain.payment.entity.PaymentAllocationType;
 import com.chapchap.subscription.domain.payment.entity.PaymentTransaction;
 import com.chapchap.subscription.domain.payment.entity.PaymentTransactionType;
 import com.chapchap.subscription.domain.payment.entity.Refund;
+import com.chapchap.subscription.domain.payment.entity.RefundStatus;
+import com.chapchap.subscription.domain.payment.entity.RefundType;
 import com.chapchap.subscription.domain.payment.repository.PaymentAllocationRepository;
 import com.chapchap.subscription.domain.payment.repository.PaymentTransactionRepository;
 import com.chapchap.subscription.domain.payment.repository.RefundRepository;
@@ -28,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import org.mockito.ArgumentCaptor;
 
 class PeriodRefundPreparationServiceTest {
@@ -86,6 +89,45 @@ class PeriodRefundPreparationServiceTest {
         ArgumentCaptor<PaymentTransaction> transactionCaptor = ArgumentCaptor.forClass(PaymentTransaction.class);
         verify(payments).saveAndFlush(transactionCaptor.capture());
         assertThat(transactionCaptor.getValue().getOriginalPaymentTransactionId()).isEqualTo(101L);
+    }
+
+    @Test
+    void 최종확정대기_환불은_새_외부취소거래를_만들지_않는다() {
+        SubscriptionRepository subscriptions = mock(SubscriptionRepository.class);
+        SubscriptionPeriodRepository periods = mock(SubscriptionPeriodRepository.class);
+        OrderRepository orders = mock(OrderRepository.class);
+        PaymentAllocationRepository allocations = mock(PaymentAllocationRepository.class);
+        PaymentTransactionRepository payments = mock(PaymentTransactionRepository.class);
+        RefundRepository refunds = mock(RefundRepository.class);
+        PeriodRefundPreparationService service = new PeriodRefundPreparationService(
+            subscriptions, periods, orders, allocations, payments, refunds
+        );
+        LocalDateTime now = LocalDateTime.of(2026, 9, 6, 12, 0);
+        Subscription subscription = Subscription.create(10L);
+        ReflectionTestUtils.setField(subscription, "id", 1L);
+        subscription.markScheduled();
+        SubscriptionPeriod period = SubscriptionPeriod.createAwaitingConfirmation(
+            1L, 1, LocalDate.of(2026, 9, 8), now
+        );
+        ReflectionTestUtils.setField(period, "id", 2L);
+        period.markScheduled();
+        Refund refund = Refund.createPeriodCancellation(
+            1L, 2L, RefundType.CANCELLATION_BEFORE_START, 10_000L
+        );
+        ReflectionTestUtils.setField(refund, "id", 300L);
+        refund.addSuccessfulAmount(10_000L, now);
+        when(subscriptions.findWithLockById(1L)).thenReturn(Optional.of(subscription));
+        when(periods.findWithLockById(2L)).thenReturn(Optional.of(period));
+        when(refunds.findBySubscriptionPeriodId(2L)).thenReturn(Optional.of(refund));
+        SubscriptionCancellationPreparation prepared = new SubscriptionCancellationPreparation(
+            SubscriptionCancellationType.CANCELLATION_BEFORE_START, 1L, 2L, List.of(20L), now
+        );
+
+        PreparedPeriodRefund result = service.prepare(prepared);
+
+        assertThat(result.status()).isEqualTo(RefundStatus.FINALIZATION_PENDING);
+        assertThat(result.cancellationTransactionIds()).isEmpty();
+        verify(payments, never()).saveAndFlush(any());
     }
 
     private PaymentTransaction original(Long id, PaymentTransactionType type, long amount, LocalDateTime occurredAt) {

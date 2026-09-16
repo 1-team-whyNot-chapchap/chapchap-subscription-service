@@ -132,7 +132,7 @@ public class SubscriptionCancellationService {
                     refund.refundId(), status, java.util.List.of()
                 );
         }
-        if (refund.status() != RefundStatus.COMPLETED) {
+        if (refund.status() != RefundStatus.FINALIZATION_PENDING && refund.status() != RefundStatus.COMPLETED) {
             throw new IllegalStateException("Refund did not reach a terminal completed state");
         }
         preStartCompletion.complete(prepared);

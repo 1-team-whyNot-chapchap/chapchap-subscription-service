@@ -165,9 +165,19 @@ public class Refund {
             throw new IllegalStateException("Successful refund amount exceeds requested amount");
         }
         if (successfulRefundAmount.equals(refundAmount)) {
-            status = RefundStatus.COMPLETED;
             this.completedAt = requireNonNull(completedAt, "completedAt");
+            status = requiresSubscriptionFinalization()
+                ? RefundStatus.FINALIZATION_PENDING
+                : RefundStatus.COMPLETED;
         }
+    }
+
+    /** 외부 환불이 성공한 기간 취소를 구독·주문 상태와 함께 고객에게 확정한다. */
+    public void finalizeSubscriptionCancellation() {
+        if (status != RefundStatus.FINALIZATION_PENDING) {
+            throw new IllegalStateException("Only a finalization-pending period refund can be completed");
+        }
+        status = RefundStatus.COMPLETED;
     }
 
     public void markFailed(String failureReason) {
@@ -186,6 +196,11 @@ public class Refund {
 
     private void requirePending() {
         if (status != RefundStatus.PENDING) throw new IllegalStateException("Only a pending refund can be completed");
+    }
+
+    private boolean requiresSubscriptionFinalization() {
+        return refundType == RefundType.CANCELLATION_BEFORE_START
+            || refundType == RefundType.NEXT_PERIOD_FULL_CANCELLATION;
     }
 
     private static Long requirePositive(Long value, String fieldName) {
