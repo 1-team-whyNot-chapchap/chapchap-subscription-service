@@ -65,6 +65,7 @@ class SubscriptionTerminationServiceTest {
 
         assertThat(current.getStatus()).isEqualTo(SubscriptionPeriodStatus.ENDED);
         assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.ENDED);
+        assertThat(subscription.getCancellationRequestedAt()).isNull();
         assertTerminationEffects(subscription, SubscriptionStatus.CANCELLATION_SCHEDULED,
             "CANCELLATION_PERIOD_ENDED", "CUSTOMER_CANCELLATION");
     }
