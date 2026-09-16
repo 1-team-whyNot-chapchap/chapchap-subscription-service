@@ -546,10 +546,16 @@ CREATE TABLE IF NOT EXISTS refunds (
         refund_amount > 0 AND successful_refund_amount <= refund_amount
     ),
     CONSTRAINT ck_refunds_status CHECK (status IN (
-        'PENDING', 'COMPLETED', 'FAILED', 'REVIEW_REQUIRED'
+        'PENDING', 'FINALIZATION_PENDING', 'COMPLETED', 'FAILED', 'REVIEW_REQUIRED'
     )),
     CONSTRAINT ck_refunds_status_fields CHECK (
         (status = 'PENDING' AND completed_at IS NULL)
+        OR
+        (
+            status = 'FINALIZATION_PENDING'
+            AND successful_refund_amount = refund_amount
+            AND completed_at IS NOT NULL
+        )
         OR
         (
             status = 'COMPLETED'

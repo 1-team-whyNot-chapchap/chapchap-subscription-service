@@ -86,4 +86,17 @@ class CustomerRefundEventPublisherTest {
             org.mockito.ArgumentMatchers.any()
         );
     }
+
+    @Test
+    void 구독최종확정대기_환불은_완료이벤트를_발행하지_않는다() {
+        when(refund.getStatus()).thenReturn(RefundStatus.FINALIZATION_PENDING);
+
+        publisher.publishTerminalAfterCommit(refund, cancellation, LocalDateTime.of(2026, 9, 1, 15, 10));
+
+        verify(kafkaTemplate, never()).send(
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.any()
+        );
+    }
 }

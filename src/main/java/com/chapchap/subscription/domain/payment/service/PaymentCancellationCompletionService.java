@@ -76,7 +76,9 @@ public class PaymentCancellationCompletionService {
             original.applySuccessfulCancellation(result.requestedAmount());
             cancellation.markCancellationSucceeded();
             refund.addSuccessfulAmount(result.requestedAmount(), result.respondedAt());
-            customerRefundPublisher.publishTerminalAfterCommit(refund, cancellation, result.respondedAt());
+            if (refund.getStatus() != RefundStatus.FINALIZATION_PENDING) {
+                customerRefundPublisher.publishTerminalAfterCommit(refund, cancellation, result.respondedAt());
+            }
             return refund.getStatus();
         }
 

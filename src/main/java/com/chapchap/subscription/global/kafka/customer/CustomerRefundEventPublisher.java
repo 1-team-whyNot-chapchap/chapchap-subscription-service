@@ -31,20 +31,7 @@ public class CustomerRefundEventPublisher {
     ) {
         Long userId = cancellation.getUserId();
         if (refund.getStatus() == RefundStatus.COMPLETED) {
-            RefundCompletedEvent event = new RefundCompletedEvent(
-                CustomerKafkaPublicationSupport.deterministicEventId(
-                    RefundCompletedEvent.EVENT_TYPE, refund.getPublicId()
-                ),
-                RefundCompletedEvent.EVENT_TYPE,
-                1,
-                CustomerKafkaPublicationSupport.toKst(occurredAt),
-                userId,
-                new RefundCompletedEvent.Data(
-                    refund.getPublicId(), refund.getRefundType().name(), refund.getSuccessfulRefundAmount(),
-                    CURRENCY, CustomerKafkaPublicationSupport.toKst(refund.getCompletedAt())
-                )
-            );
-            sendAfterCommit(refund.getPublicId(), event);
+            publishCompletedAfterCommit(refund, userId, occurredAt);
             return;
         }
         if (refund.getStatus() == RefundStatus.FAILED) {
@@ -63,6 +50,26 @@ public class CustomerRefundEventPublisher {
             );
             sendAfterCommit(refund.getPublicId(), event);
         }
+    }
+
+    public void publishCompletedAfterCommit(Refund refund, Long userId, LocalDateTime occurredAt) {
+        if (refund.getStatus() != RefundStatus.COMPLETED) {
+            throw new IllegalStateException("Only a completed refund can be published");
+        }
+        RefundCompletedEvent event = new RefundCompletedEvent(
+            CustomerKafkaPublicationSupport.deterministicEventId(
+                RefundCompletedEvent.EVENT_TYPE, refund.getPublicId()
+            ),
+            RefundCompletedEvent.EVENT_TYPE,
+            1,
+            CustomerKafkaPublicationSupport.toKst(occurredAt),
+            userId,
+            new RefundCompletedEvent.Data(
+                refund.getPublicId(), refund.getRefundType().name(), refund.getSuccessfulRefundAmount(),
+                CURRENCY, CustomerKafkaPublicationSupport.toKst(refund.getCompletedAt())
+            )
+        );
+        sendAfterCommit(refund.getPublicId(), event);
     }
 
     private void sendAfterCommit(String key, Object event) {
