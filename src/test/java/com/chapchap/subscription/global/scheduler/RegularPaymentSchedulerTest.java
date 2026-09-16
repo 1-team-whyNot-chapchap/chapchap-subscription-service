@@ -29,15 +29,15 @@ class RegularPaymentSchedulerTest {
     }
 
     @Test
-    void 정기결제_스케줄은_한국시간_09시와_13시로_고정한다() throws Exception {
+    void 정기결제_스케줄은_필수_환경변수와_한국시간을_사용한다() throws Exception {
         Scheduled initial = RegularPaymentScheduler.class.getMethod("executeInitialPayments")
             .getAnnotation(Scheduled.class);
         Scheduled retry = RegularPaymentScheduler.class.getMethod("executeRetryPayments")
             .getAnnotation(Scheduled.class);
 
-        assertThat(initial.cron()).isEqualTo("0 0 9 * * *");
+        assertThat(initial.cron()).isEqualTo("${REGULAR_PAYMENT_INITIAL_CRON}");
         assertThat(initial.zone()).isEqualTo("Asia/Seoul");
-        assertThat(retry.cron()).isEqualTo("0 0 13 * * *");
+        assertThat(retry.cron()).isEqualTo("${REGULAR_PAYMENT_RETRY_CRON}");
         assertThat(retry.zone()).isEqualTo("Asia/Seoul");
     }
 }
