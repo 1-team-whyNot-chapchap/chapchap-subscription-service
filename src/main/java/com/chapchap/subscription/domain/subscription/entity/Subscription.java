@@ -122,7 +122,7 @@ public class Subscription {
         if (canceledAt == null) throw new IllegalArgumentException("시작 취소 시각이 필요합니다.");
         SubscriptionStatus previousStatus = status;
         status = SubscriptionStatus.CANCELED_BEFORE_START;
-        cancellationRequestedAt = canceledAt;
+        cancellationRequestedAt = null;
         return previousStatus;
     }
 
@@ -133,6 +133,7 @@ public class Subscription {
         }
         SubscriptionStatus previousStatus = status;
         status = SubscriptionStatus.ENDED;
+        cancellationRequestedAt = null;
         return previousStatus;
     }
 
