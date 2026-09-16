@@ -26,18 +26,18 @@ class DeliveryOrderKafkaSchedulerTest {
     }
 
     @Test
-    void 최초_배송_주문_발행은_매일_15시_KST로_등록된다() throws NoSuchMethodException {
+    void 최초_배송_주문_발행은_필수_환경변수와_KST로_등록된다() throws NoSuchMethodException {
         Scheduled scheduled = scheduled("publishInitialOrders");
 
-        assertThat(scheduled.cron()).isEqualTo("0 0 15 * * *");
+        assertThat(scheduled.cron()).isEqualTo("${DELIVERY_ORDER_INITIAL_CRON}");
         assertThat(scheduled.zone()).isEqualTo("Asia/Seoul");
     }
 
     @Test
-    void 실패_배송_주문_재발행은_매일_16시_KST로_등록된다() throws NoSuchMethodException {
+    void 실패_배송_주문_재발행은_필수_환경변수와_KST로_등록된다() throws NoSuchMethodException {
         Scheduled scheduled = scheduled("publishFailedOrdersOnce");
 
-        assertThat(scheduled.cron()).isEqualTo("0 0 16 * * *");
+        assertThat(scheduled.cron()).isEqualTo("${DELIVERY_ORDER_RETRY_CRON}");
         assertThat(scheduled.zone()).isEqualTo("Asia/Seoul");
     }
 

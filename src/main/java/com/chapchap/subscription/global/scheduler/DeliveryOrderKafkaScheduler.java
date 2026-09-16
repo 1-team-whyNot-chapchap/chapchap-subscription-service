@@ -18,12 +18,12 @@ public class DeliveryOrderKafkaScheduler {
         this.timeProvider = timeProvider;
     }
 
-    @Scheduled(cron = "0 0 15 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "${DELIVERY_ORDER_INITIAL_CRON}", zone = "Asia/Seoul")
     public void publishInitialOrders() {
         publisherService.publishInitialOrders(timeProvider.now().toLocalDate());
     }
 
-    @Scheduled(cron = "0 0 16 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "${DELIVERY_ORDER_RETRY_CRON}", zone = "Asia/Seoul")
     public void publishFailedOrdersOnce() {
         publisherService.publishFailedOrdersOnce(timeProvider.now().toLocalDate());
     }
