@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="760" class="desktop-diagram" viewBox="0 0 1240 760" role="img" aria-labelledby="svg-title svg-desc">
+          <title id="svg-title">챱챱 구독 서비스 중심 구조와 연동</title>
+          <desc id="svg-desc">
+            고객 요청은 웹·모바일에서 API Gateway를 거쳐 구독 서비스로 전달됩니다. 구독 서비스 전용 MySQL, PortOne 결제 연동, Kafka를 통한 회원·인증·배송·고객지원 서비스와의 이벤트 흐름을 보여줍니다. 연동 대상 서비스의 내부 구조는 생략했습니다.
+          </desc>
+
+          <defs>
+<style>.desktop-diagram{display:block;background:#fff}
+.section-label{fill:#657085;font-size:13px;font-weight:700;letter-spacing:.12em}
+.zone-sync{fill:#eff6ff;opacity:.52}.zone-event{fill:#f5f3ff;opacity:.6}
+.node rect{fill:#fff;stroke:#d9e0ea;stroke-width:1.5}
+.node.core rect{fill:#2563eb;stroke:#2563eb}.node.gateway rect{fill:#eff6ff;stroke:#93c5fd}
+.node.data rect{fill:#f0fdfa;stroke:#99f6e4}.node.external rect{fill:#fffbeb;stroke:#fcd34d}
+.node.kafka rect{fill:#7c3aed;stroke:#7c3aed}
+.node-title{fill:#172033;font-size:18px;font-weight:700;text-anchor:middle}
+.node-copy{fill:#657085;font-size:14px;font-weight:500;text-anchor:middle}
+.node-tag{fill:#657085;font-size:11px;font-weight:700;letter-spacing:.1em;text-anchor:middle}
+.core .node-title,.core .node-copy,.core .node-tag,.kafka .node-title,.kafka .node-copy,.kafka .node-tag{fill:#fff}
+.connector{fill:none;stroke:#667085;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.connector.event{stroke:#7c3aed;stroke-dasharray:7 7}
+.connector-label-bg{fill:#fff;opacity:.96}
+.connector-label{fill:#657085;font-size:12px;font-weight:600;text-anchor:middle}
+.event-label{fill:#7c3aed}
+text{font-family:Pretendard,"Noto Sans KR","Apple SD Gothic Neo",Inter,system-ui,sans-serif}</style>
+            <marker
+              id="arrow-sync"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#667085"></path>
+            </marker>
+            <marker
+              id="arrow-event"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"></path>
+            </marker>
+          </defs>
+
+          <rect
+            class="zone-sync"
+            x="28"
+            y="52"
+            width="1184"
+            height="325"
+            rx="22"
+          ></rect>
+          <text class="section-label" x="52" y="83">
+            01 · REQUEST &amp; CORE
+          </text>
+
+          <rect
+            class="zone-event"
+            x="28"
+            y="394"
+            width="1184"
+            height="342"
+            rx="22"
+          ></rect>
+          <text class="section-label" x="52" y="425">
+            02 · EVENT-DRIVEN COLLABORATION
+          </text>
+
+          <!-- Primary synchronous path -->
+          <path
+            class="connector"
+            d="M 226 207 H 286"
+            marker-end="url(#arrow-sync)"
+          ></path>
+          <path
+            class="connector"
+            d="M 486 207 H 546"
+            marker-end="url(#arrow-sync)"
+          ></path>
+
+          <!-- Direct dependencies -->
+          <path
+            class="connector"
+            d="M 824 165 H 906"
+            marker-end="url(#arrow-sync)"
+          ></path>
+          <path
+            class="connector"
+            d="M 824 249 H 864 V 291 H 906"
+            marker-start="url(#arrow-sync)"
+            marker-end="url(#arrow-sync)"
+          ></path>
+
+          <!-- Subscription to Kafka -->
+          <path
+            class="connector event"
+            d="M 685 292 V 443"
+            marker-start="url(#arrow-event)"
+            marker-end="url(#arrow-event)"
+          ></path>
+          <rect
+            class="connector-label-bg"
+            x="696"
+            y="330"
+            width="158"
+            height="42"
+            rx="12"
+          ></rect>
+          <text class="connector-label event-label" x="775" y="346">
+            <tspan x="775" dy="0">업무 이벤트 발행</tspan>
+            <tspan x="775" dy="16">환불 이벤트 수신</tspan>
+          </text>
+
+          <!-- Kafka and related services -->
+          <path
+            class="connector event"
+            d="M 685 531 V 632"
+            marker-start="url(#arrow-event)"
+            marker-end="url(#arrow-event)"
+          ></path>
+          <rect
+            class="connector-label-bg"
+            x="710"
+            y="552"
+            width="208"
+            height="28"
+            rx="14"
+          ></rect>
+          <text class="connector-label event-label" x="814" y="570">
+            이벤트 발행 · 수신
+          </text>
+
+          <!-- Nodes: entry -->
+          <g class="node" transform="translate(52 153)">
+            <rect width="174" height="108" rx="16"></rect>
+            <text class="node-tag" x="87" y="26">CLIENT</text>
+            <text class="node-title" x="87" y="57">웹 · 모바일</text>
+            <text class="node-copy" x="87" y="82">고객 요청</text>
+          </g>
+
+          <g class="node gateway" transform="translate(286 153)">
+            <rect width="200" height="108" rx="16"></rect>
+            <text class="node-tag" x="100" y="26">EDGE</text>
+            <text class="node-title" x="100" y="57">API Gateway</text>
+            <text class="node-copy" x="100" y="82">인증 확인 · 요청 전달</text>
+          </g>
+
+          <g class="node core" transform="translate(546 122)">
+            <rect width="278" height="170" rx="20"></rect>
+            <text class="node-tag" x="139" y="32">CORE SERVICE</text>
+            <text class="node-title" x="139" y="70">Subscription Service</text>
+            <text class="node-copy" x="139" y="101">
+              구독 · 주문 · 결제 · 환불
+            </text>
+            <line
+              x1="34"
+              y1="121"
+              x2="244"
+              y2="121"
+              stroke="rgba(255,255,255,0.28)"
+            ></line>
+            <text class="node-copy" x="139" y="146">
+              정기 작업 및 업무 규칙 처리
+            </text>
+          </g>
+
+          <g class="node data" transform="translate(906 101)">
+            <rect width="278" height="128" rx="16"></rect>
+            <text class="node-tag" x="139" y="28">PRIVATE DATA</text>
+            <text class="node-title" x="139" y="60">MySQL</text>
+            <text class="node-copy" x="139" y="86">구독 서비스 전용 DB</text>
+            <text class="node-copy" x="139" y="106">
+              타 서비스 직접 접근 없음
+            </text>
+          </g>
+
+          <g class="node external" transform="translate(906 247)">
+            <rect width="278" height="88" rx="16"></rect>
+            <text class="node-tag" x="139" y="25">EXTERNAL API</text>
+            <text class="node-title" x="139" y="53">PortOne</text>
+            <text class="node-copy" x="139" y="73">자동결제 · 결제 취소</text>
+          </g>
+
+          <!-- Nodes: async collaboration -->
+          <g class="node kafka" transform="translate(546 443)">
+            <rect width="278" height="88" rx="18"></rect>
+            <text class="node-tag" x="139" y="27">EVENT BUS</text>
+            <text class="node-title" x="139" y="56">Apache Kafka</text>
+            <text class="node-copy" x="139" y="76">서비스 간 비동기 연결</text>
+          </g>
+
+          <g class="node" transform="translate(435 632)">
+            <rect width="500" height="84" rx="16"></rect>
+            <text class="node-tag" x="250" y="24">RELATED SERVICES</text>
+            <text class="node-title" x="250" y="51">연동 대상 서비스</text>
+            <text class="node-copy" x="250" y="72">회원 · 인증 · 배송 · 고객지원</text>
+          </g>
+        </svg>
