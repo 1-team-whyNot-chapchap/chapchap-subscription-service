@@ -33,7 +33,7 @@ public class TermsController {
     @Operation(
         summary = "현재 비대면 보관 약관 조회",
         description = "호환 API입니다. 신규 클라이언트는 현재 필수 약관 전체 조회 API를 사용합니다.",
-        deprecated = true
+        deprecated = false
     )
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
@@ -56,7 +56,7 @@ public class TermsController {
     @Operation(
         summary = "비대면 보관 약관 동의",
         description = "호환 API입니다. 신규 클라이언트는 현재 필수 약관 동의 API를 사용합니다.",
-        deprecated = true
+        deprecated = false
     )
     @CustomApiResponse({
         ErrorCode.AUTHENTICATION_REQUIRED,
